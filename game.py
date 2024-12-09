@@ -12,12 +12,12 @@ from menu.menu import VerticalMenu, PlayPauseButton, ActionButton
 from algorithm.greedy import improved_greedy_placement
 from algorithm.dp import dp_placement
 import pickle
+import json
 import time
 import random
 pygame.font.init()
 pygame.init()
 
-TIME_DISTANCE = 6
 
 path = [(-10, 250),(100, 250), (190, 302), (200, 302), (553, 302), (607, 217), (641, 105), (717, 57), (814, 83), (852, 222), (900, 272), (973, 284), (1100, 366), (1100, 437), (1022, 513), (814, 513), (650, 580), (580, 580), (148, 580), (43, 520), (-10, 367), (-70, 367), (-100, 367)]
 
@@ -935,6 +935,32 @@ class Game_q(Game):
         try:
             with open(filename, 'rb') as f:
                 self.Q = pickle.load(f)
+            print(f"Q 表已从 {filename} 加载。")
+        except FileNotFoundError:
+            print(f"未找到 Q 表文件 {filename}。请先进行训练。")
+            self.Q = {}
+
+    def save_q_table(self, filename="q_table.json"):
+        """
+        使用 JSON 将 Q 表保存到文件。
+        """
+        # JSON 不支持非字符串的字典键，将元组转换为字符串保存
+        json_compatible_Q = {str(key): value for key, value in self.Q.items()}
+        
+        with open(filename, 'w') as f:
+            json.dump(json_compatible_Q, f, indent=4)
+        print(f"Q 表已保存到 {filename}")
+
+    def load_q_table(self, filename="q_table.json"):
+        """
+        使用 JSON 从文件中加载 Q 表。
+        """
+        try:
+            with open(filename, 'r') as f:
+                json_compatible_Q = json.load(f)
+            
+            # 将字符串键还原为元组
+            self.Q = {eval(key): value for key, value in json_compatible_Q.items()}
             print(f"Q 表已从 {filename} 加载。")
         except FileNotFoundError:
             print(f"未找到 Q 表文件 {filename}。请先进行训练。")
