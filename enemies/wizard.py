@@ -19,8 +19,10 @@ class Wizard(Enemy):
         super().__init__()
         self.name = "wizard"
         self.money = 3
-        self.max_health = 3
+        self.max_health = 120
         self.health = self.max_health
         self.imgs = imgs[:]
 
+        self.armor = 40
+        self.magic_resistance = 0.1
 

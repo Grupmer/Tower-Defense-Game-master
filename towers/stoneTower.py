@@ -36,7 +36,7 @@ class StoneTower(Tower):
         self.inRange = False
         self.left = True
         self.price = [1500, 4000, "MAX"]
-        self.damage = 1
+        self.damage = 120
         self.original_damage = self.damage
         self.projectiles = []  # 存储弹道
         self.rock_x = 0

@@ -19,9 +19,11 @@ class Sword(Enemy):
         self.name = "sword"
         self.money = 200
         self.imgs = imgs[:]
-        self.max_health = 100
+        self.max_health = 400
         self.health = self.max_health
 
+        self.armor = 20
+        self.magic_resistance = 0.2
 
 
 

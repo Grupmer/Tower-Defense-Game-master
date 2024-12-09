@@ -34,7 +34,7 @@ class ArcherTowerLong(Tower):
         self.inRange = False
         self.left = True
         self.price = [1500, 4000, "MAX"]
-        self.damage = 1
+        self.damage = 25
         self.original_damage = self.damage
         self.width = self.height = 90
         self.moving = False
@@ -62,12 +62,12 @@ class ArcherTowerLong(Tower):
 
         if self.inRange and not self.moving:
             self.archer_count += 1
-            if self.archer_count >= len(self.archer_imgs) * 10:
+            if self.archer_count >= len(self.archer_imgs) * 6:    # 10 by defult
                 self.archer_count = 0
         else:
             self.archer_count = 0
 
-        archer = self.archer_imgs[self.archer_count // 10]
+        archer = self.archer_imgs[self.archer_count // 6]    # 10 by defult
         if self.left == True:
             add = -25
         else:
@@ -104,7 +104,7 @@ class ArcherTowerLong(Tower):
         enemy_closest = enemy_closest[::-1]
         if len(enemy_closest) > 0:
             first_enemy = enemy_closest[0]
-            if self.archer_count == 50:
+            if self.archer_count == 30:    # 50 by defult
                 if first_enemy.hit(self.damage) == True:
                     money = first_enemy.money * 2
                     enemies.remove(first_enemy)

@@ -37,7 +37,7 @@ class MagicTower(Tower):
         self.inRange = False
         self.left = True
         self.price = [1500, 4000, "MAX"]
-        self.damage = 1
+        self.damage = 45
         self.original_damage = self.damage
         self.projectiles = []  # 存储弹道
         self.width = self.height = 90
@@ -49,7 +49,7 @@ class MagicTower(Tower):
         self.menu.add_btn(upgrade_btn, "Upgrade")
 
         self.attack_count = 0  # 攻击计数器
-        self.attack_speed = 5  # 攻速（帧数，60 表示 1 秒攻击一次）
+        self.attack_speed = 60  # 攻速（帧数，60 表示 1 秒攻击一次）
 
     def get_upgrade_cost(self):
         """

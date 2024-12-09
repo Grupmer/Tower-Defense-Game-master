@@ -19,8 +19,10 @@ class Club(Enemy):
         self.name = "club"
         self.money = 5
         self.imgs = imgs[:]
-        self.max_health = 500
+        self.max_health = 250
         self.health = self.max_health
 
+        self.armor = 30
+        self.magic_resistance = 0.3
 
 

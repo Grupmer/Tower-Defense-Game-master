@@ -103,7 +103,7 @@ class Game:
         self.music_on = True
         self.playPauseButton = PlayPauseButton(play_btn, pause_btn, 10, self.height - 85)
         self.soundButton = PlayPauseButton(sound_btn, sound_btn_off, 90, self.height - 85)
-        self.valid_positions = [(117, 113), (544, 160), (485, 612), (899, 564), (1070, 160)]
+        self.valid_positions = [(117, 113), (544, 160), (1070, 160),  (899, 564), (485, 612)]
 
     def gen_enemies(self):
         """
