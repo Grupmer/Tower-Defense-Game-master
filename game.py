@@ -9,6 +9,8 @@ from towers.stoneTower import StoneTower
 from towers.magicTower import MagicTower
 from towers.supportTower import DamageTower, RangeTower
 from menu.menu import VerticalMenu, PlayPauseButton, ActionButton
+from algorithm.greedy import improved_greedy_placement
+from algorithm.dp import dp_placement
 import pickle
 import time
 import random
@@ -106,6 +108,8 @@ class Game:
         self.moving_object = None
         self.wave = 0
         self.current_wave = waves[self.wave][:]
+        self.tick_counter = 0
+        self.ticks_per_enemy = 360
         self.pause = True
         self.music_on = True
         self.playPauseButton = PlayPauseButton(play_btn, pause_btn, 10, self.height - 85)
@@ -125,12 +129,13 @@ class Game:
                 self.pause = True
                 self.playPauseButton.paused = self.pause
         else:
-            wave_enemies = [Scorpion(), Wizard(), Club(), Sword()]
-            for x in range(len(self.current_wave)):
-                if self.current_wave[x] != 0:
-                    self.enemys.append(wave_enemies[x])
-                    self.current_wave[x] = self.current_wave[x] - 1
-                    break
+            if self.tick_counter % self.ticks_per_enemy == 0:  # 根据 tick 判断是否生成怪物
+                wave_enemies = [Scorpion(), Wizard(), Club(), Sword()]
+                for x in range(len(self.current_wave)):
+                    if self.current_wave[x] != 0:
+                        self.enemys.append(wave_enemies[x])
+                        self.current_wave[x] = self.current_wave[x] - 1
+                        break
 
     def point_to_line(self, tower):
         """
@@ -169,6 +174,8 @@ class Game:
         self.support_towers = []
         self.enemys = []
         self.wave = 0
+        self.current_wave = waves[self.wave][:]
+        self.tick_counter = 0
         self.pause = True
         self.moving_object = None
 
@@ -337,7 +344,7 @@ class Game:
         self.win.blit(money, (start_x, 65))
 
         # draw wave
-        self.win.blit(wave_bg, (TIME_DISTANCE, TIME_DISTANCE))
+        self.win.blit(wave_bg, (10, 10))
         text = self.life_font.render("Wave #" + str(self.wave), 1, (255, 255, 255))
         self.win.blit(text, (10 + wave_bg.get_width()/2 - text.get_width()/2, 14))
 
@@ -349,14 +356,11 @@ class Game:
         run_game = True
         clock = pygame.time.Clock()
         while run_game:
-            clock.tick(60)
+            clock.tick(60)  # 60 FPS
+            self.tick_counter += 1  # 每帧增加一个 tick
 
             if not self.pause:
-                # 生成敌人
-                # 0.33, 0.5
-                if time.time() - self.timer >= random.uniform(TIME_DISTANCE, TIME_DISTANCE):
-                    self.timer = time.time()
-                    self.gen_enemies()
+                self.gen_enemies()  # 基于 tick 生成敌人
 
             pos = pygame.mouse.get_pos()
 
@@ -448,10 +452,6 @@ class Game:
         pygame.quit()
 
 
-from algorithm.greedy import improved_greedy_placement()
-from algorithm.dp import *
-
-
 class Game_dp(Game):
     def __init__(self, win):
         super().__init__(win)
@@ -473,15 +473,19 @@ class Game_dp(Game):
         pygame.mixer.music.play(loops=-1)
         run_game = True
         clock = pygame.time.Clock()
+
+        name_map = {
+            "MagicTower": "buy_magic",
+            "ArrowTower": "buy_archer",
+            "CannonTower": "buy_stone"
+        }
+
         while run_game:
-            clock.tick(60)
+            clock.tick(60)  # 60 FPS
+            self.tick_counter += 1  # 每帧增加一个 tick
 
             if not self.pause:
-                # 生成敌人
-                # 0.33, 0.5
-                if time.time() - self.timer >= random.uniform(TIME_DISTANCE, TIME_DISTANCE):
-                    self.timer = time.time()
-                    self.gen_enemies()
+                self.gen_enemies()  # 基于 tick 生成敌人
 
             pos = pygame.mouse.get_pos()
 
@@ -534,12 +538,19 @@ class Game_dp(Game):
                         if self.restartButton.click(pos[0], pos[1]):
                             self.reset_game()
 
-                        # Function button
+                        # *** DP Function button ***
                         if self.dpButton.click(pos[0], pos[1]):
-                            dp_positions, dp_names = improved_greedy_placement()
+                            positions, names = dp_placement()
+                            for dp_position, dp_name in zip(positions, names):
+                                self.add_tower(name_map[dp_name])
+                                self.place_tower(self.valid_positions[dp_position])
 
+                        # *** GREEDY Function button ***
                         if self.greedyButton.click(pos[0], pos[1]):
-                            pass
+                            greedy_positions, greedy_names = improved_greedy_placement()
+                            for greedy_position, greedy_name in zip(greedy_positions, greedy_names):
+                                self.add_tower(name_map[greedy_name])
+                                self.place_tower(self.valid_positions[greedy_position])
 
                         # look if you clicked on attack tower or support tower
                         btn_clicked = None
@@ -583,11 +594,9 @@ class Game_dp(Game):
 class Game_q(Game):
     def __init__(self, win):
         super().__init__(win)
-        # 将qButton的action指定为self.run_q_learning
         self.qTrainButton = ActionButton(q_train_btn, 330, self.height - 85)
         self.qPlayButton = ActionButton(q_play_btn, 410, self.height - 85)
         self.valid_positions = [(117, 113), (544, 160), (1070, 160),  (899, 564), (485, 612)]
-        self.tick_counter = 0  # 初始化tick计数器
 
         # Q-learning相关参数
         self.alpha = 0.1
@@ -604,6 +613,19 @@ class Game_q(Game):
         self.actions = self.generate_actions()  # 生成所有动作
         self.training_done = False  # 标记训练结束
         self.policy_mode = False  # 是否处于演示模式
+
+    def gen_enemies_q(self):
+        """
+        generate the next enemy or enemies to show
+        :return: enemy
+        """
+        if self.tick_counter % self.ticks_per_enemy == 0:  # 根据 tick 判断是否生成怪物
+            wave_enemies = [Scorpion(), Wizard(), Club(), Sword()]
+            for x in range(len(self.current_wave)):
+                if self.current_wave[x] != 0:
+                    self.enemys.append(wave_enemies[x])
+                    self.current_wave[x] = self.current_wave[x] - 1
+                    break
 
     def place_tower(self, pos):
         if self.moving_object is None:
@@ -750,7 +772,7 @@ class Game_q(Game):
             return -cost_penalty
         else:
             # 放塔失败（不可建造位置或没钱）
-            # 给一定的固定惩罚，比如-50
+            # 给一定的固定惩罚
             return -50
 
     def compute_reward(self, old_lives, old_enemy_count, old_money, cost_penalty):
@@ -770,8 +792,6 @@ class Game_q(Game):
 
     def reset_game(self):
         super().reset_game()
-        self.wave = 0
-        self.current_wave = waves[self.wave][:]
         self.pause = False   # 确保训练时不暂停游戏
 
     def run_q_learning(self):
@@ -789,15 +809,9 @@ class Game_q(Game):
             self.reset_game()
             self.display_q_table(episode)  # 展示Q表
             done = False
-            self.tick_counter = 0  # 重置tick计数器
+            self.tick_counter = 0
 
             while not done:
-                # 处理事件以防止卡死
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        pygame.quit()
-                        return
-
                 clock.tick(self.training_tick_speed)
                 self.tick_counter += 1  # 增加tick计数器
 
@@ -811,10 +825,7 @@ class Game_q(Game):
 
                 # 更新游戏状态
                 if not self.pause:
-                    # 敌人生成（第一波）
-                    if time.time() - self.timer >= 0.06:         # 这里可能需要修改！！！现实是10
-                        self.timer = time.time()
-                        self.gen_enemies()
+                    self.gen_enemies_q()  # 特殊的生成方式
                     self.update_game_state()
 
                 next_state = self.get_state()
@@ -834,7 +845,7 @@ class Game_q(Game):
                     if self.lives > 9:  # 游戏完美通关
                         for state, action_idx in self.effective_states:
                             old_q = self.get_q_value(state, action_idx)
-                            # 根据通关奖励增加分数（例如 +100）
+                            # 根据通关奖励增加分数
                             self.set_q_value(state, action_idx, old_q + 120)
                     elif self.lives > 8:
                         for state, action_idx in self.effective_states:
@@ -901,10 +912,7 @@ class Game_q(Game):
             self.take_action(best_action_idx)
 
             if not self.pause:
-                # 敌人生成（第一波）
-                if time.time() - self.timer >= TIME_DISTANCE:
-                    self.timer = time.time()
-                    self.gen_enemies()
+                self.gen_enemies()
                 self.update_game_state()
 
             self.draw()
@@ -981,10 +989,7 @@ class Game_q(Game):
             # 只有在非训练、非policy模式下才像普通Game那样运行
             if not self.training_done and not self.policy_mode:
                 if not self.pause:
-                    # 定时产生敌人
-                    if time.time() - self.timer >= random.uniform(TIME_DISTANCE, TIME_DISTANCE):
-                        self.timer = time.time()
-                        self.gen_enemies()
+                    self.gen_enemies()  # 基于 tick 生成敌人
 
                 # Handle moving towers (if any)
                 if self.moving_object:

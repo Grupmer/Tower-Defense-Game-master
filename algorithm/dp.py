@@ -20,10 +20,10 @@ def init_game():
     """初始化塔和怪物"""
     # 定义每个位置的攻击时间
     position_times = {
-        0: 5.21,    # 第一个位置停留5.21秒
+        0: 3.71,    # 第一个位置停留3.71秒
         1: 6.00,    # 第二个位置停留6.00秒
-        2: 5.52,    # 第三个位置停留5.52秒
-        3: 5.79,    # 第四个位置停留5.79秒
+        2: 6.12,    # 第三个位置停留6.12秒
+        3: 6.02,    # 第四个位置停留6.02秒
         4: 5.92     # 第五个位置停留5.92秒
     }
     
@@ -74,18 +74,33 @@ def can_kill_monster(placement, monster, position_times):
     return total_damage >= monster.hp
 
 def dp_placement(positions=5, initial_gold=3000):
-    """动态规划算法"""
     towers, monsters, position_times = init_game()
     dp = {}
     
+    required_m1, required_m2, required_b1, required_b2 = 2, 2, 1, 1
+
+    def update_requirements(current_placement, m1, m2, b1, b2):
+        # 若可以击杀对应怪物，则需求置0
+        if m1 > 0 and can_kill_monster(current_placement, monsters[0], position_times):
+            m1 = 0
+        if m2 > 0 and can_kill_monster(current_placement, monsters[1], position_times):
+            m2 = 0
+        if b1 > 0 and can_kill_monster(current_placement, monsters[2], position_times):
+            b1 = 0
+        if b2 > 0 and can_kill_monster(current_placement, monsters[3], position_times):
+            b2 = 0
+        return m1, m2, b1, b2
+
     def solve(pos, m1, m2, b1, b2, gold_left, current_placement):
+        # 更新需求
+        m1, m2, b1, b2 = update_requirements(current_placement, m1, m2, b1, b2)
+        
+        # 如果已经满足全部需求，则cost为0（不需要放更多塔）
+        if m1 == 0 and m2 == 0 and b1 == 0 and b2 == 0:
+            return 0, current_placement
+
         if pos == 0:
-            if current_placement and \
-               (m1 == 0 or can_kill_monster(current_placement, monsters[0], position_times)) and \
-               (m2 == 0 or can_kill_monster(current_placement, monsters[1], position_times)) and \
-               (b1 == 0 or can_kill_monster(current_placement, monsters[2], position_times)) and \
-               (b2 == 0 or can_kill_monster(current_placement, monsters[3], position_times)):
-                return 0, current_placement
+            # 没有位置可放且仍未满足需求
             return float('inf'), current_placement
             
         state = (pos, m1, m2, b1, b2, gold_left)
@@ -94,39 +109,33 @@ def dp_placement(positions=5, initial_gold=3000):
         
         min_cost = float('inf')
         best_placement = current_placement
-        
-        # 先尝试放塔
-        for tower in towers:
-            if tower.cost <= gold_left:
-                new_placement = [(pos-1, tower)] + current_placement
-                cost, placement = solve(pos-1, m1, m2, b1, b2, 
-                                     gold_left - tower.cost, new_placement)
-                total_cost = tower.cost + cost
-                
-                if total_cost < min_cost:
-                    min_cost = total_cost
-                    best_placement = placement
-        
-        # 再尝试不放塔
+
+        # 尝试不放塔
         cost, placement = solve(pos-1, m1, m2, b1, b2, gold_left, current_placement)
         if cost < min_cost:
             min_cost = cost
             best_placement = placement
-        
-        dp[state] = (min_cost, best_placement)
-        return min_cost, best_placement
 
-    dp_cost, dp_result = solve(positions, 2, 2, 1, 1, initial_gold, [])
+        # 尝试在此位置放置每种塔
+        for tower in towers:
+            if tower.cost <= gold_left:
+                new_placement = [(pos-1, tower)] + current_placement
+                new_m1, new_m2, new_b1, new_b2 = update_requirements(new_placement, m1, m2, b1, b2)
+                
+                # 继续尝试其他塔，以寻找更便宜的方案
+                new_cost, new_pl = solve(pos-1, new_m1, new_m2, new_b1, new_b2, gold_left - tower.cost, new_placement)
+                total_cost = tower.cost + new_cost
+                if total_cost < min_cost:
+                    min_cost = total_cost
+                    best_placement = new_pl
+
+        dp[state] = (min_cost, best_placement)
+        return dp[state]
+
+    dp_cost, dp_result = solve(positions, required_m1, required_m2, required_b1, required_b2, initial_gold, [])
 
     # 提取塔的位置和名称
     tower_pos_output = [pos for pos, _ in dp_result]
     tower_name_output = [tower.name for _, tower in dp_result]
-    
+
     return tower_pos_output, tower_name_output
-
-
-# 运行动态规划算法
-print("=== 动态规划算法优化结果 ===")
-dp_positions, dp_names = dp_placement()
-print(f"塔的位置: {dp_positions}")
-print(f"塔的名称: {dp_names}")

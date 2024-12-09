@@ -20,10 +20,10 @@ def init_game():
     """初始化塔和怪物"""
     # 定义每个位置的攻击时间
     position_times = {
-        0: 5.21,    # 第一个位置停留5.21秒
+        0: 3.71,    # 第一个位置停留3.71秒
         1: 6.00,    # 第二个位置停留6.00秒
-        2: 5.52,    # 第三个位置停留5.52秒
-        3: 5.79,    # 第四个位置停留5.79秒
+        2: 6.12,    # 第三个位置停留6.12秒
+        3: 6.02,    # 第四个位置停留6.02秒
         4: 5.92     # 第五个位置停留5.92秒
     }
     
@@ -155,9 +155,3 @@ def improved_greedy_placement(positions=5, initial_gold=3000):
     tower_name_output = [tower.name for _, tower in placement]
     
     return tower_pos_output, tower_name_output
-
-# 运行贪心算法
-print("=== 贪心算法优化结果 ===")
-greedy_positions, greedy_names = improved_greedy_placement()
-print(f"塔的位置: {greedy_positions}")
-print(f"塔的名称: {greedy_names}")

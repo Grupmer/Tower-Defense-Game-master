@@ -9,7 +9,7 @@ for x in range(20):
         add_str = "0" + add_str
     imgs.append(pygame.transform.scale(
         pygame.image.load(os.path.join("game_assets/enemies/8", "8_enemies_1_run_0" + add_str + ".png")).convert_alpha(),
-        (100, 100)))
+        (85, 85)))
 
 
 class Sword(Enemy):
