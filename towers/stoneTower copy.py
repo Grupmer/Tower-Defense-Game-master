@@ -1,23 +1,22 @@
+import math
 import pygame
 from .tower import Tower
 import os
-import math
 from menu.menu import Menu
-
 
 menu_bg = pygame.transform.scale(pygame.image.load(os.path.join("game_assets", "menu.png")).convert_alpha(), (120, 70))
 upgrade_btn = pygame.transform.scale(pygame.image.load(os.path.join("game_assets", "upgrade.png")).convert_alpha(), (50, 50))
 
-
 tower_imgs = []
 archer_imgs = []
-# load archer tower images
+
+# Load archer tower images
 for x in range(15, 18):
     tower_imgs.append(pygame.transform.scale(
         pygame.image.load(os.path.join("game_assets/stone_towers", str(x) + ".png")).convert_alpha(),
         (90, 90)))
 
-# load rock image
+# Load rock image
 for x in range(29, 30):
     archer_imgs.append(pygame.transform.scale(
         pygame.image.load(os.path.join("game_assets/stone_towers", str(x) + ".png")).convert_alpha(),
@@ -26,7 +25,7 @@ for x in range(29, 30):
 
 
 class StoneTower(Tower):
-    def __init__(self, x,y):
+    def __init__(self, x, y):
         super().__init__(x, y)
         self.tower_imgs = tower_imgs[:]
         self.archer_imgs = archer_imgs[:]
@@ -38,8 +37,8 @@ class StoneTower(Tower):
         self.price = [1500, 4000, "MAX"]
         self.damage = 1
         self.original_damage = self.damage
-        self.attack_speed = 60  # 攻速
-        self.projectiles = []  # 存储弹道
+        self.attack_speed = 60  # Attack speed
+        self.projectiles = []  # List to store projectiles
         self.width = self.height = 90
         self.moving = False
         self.name = "stone"
@@ -48,37 +47,37 @@ class StoneTower(Tower):
         self.menu = Menu(self, self.x, self.y, menu_bg, self.price)
         self.menu.add_btn(upgrade_btn, "Upgrade")
 
-        self.attack_count = 0  # 攻击计数器
-        self.attack_speed = 60  # 攻速（帧数，60 表示 1 秒攻击一次）
+        self.attack_count = 0  # Attack counter
+        self.attack_speed = 60  # Attack speed (frames, 60 means once per second)
 
     def get_upgrade_cost(self):
         """
-        gets the upgrade cost
+        Get the upgrade cost
         :return: int
         """
         return self.menu.get_item_cost()
 
     def draw(self, win):
         """
-        draw the arhcer tower and animated archer
+        Draw the tower and its animated projectile
         :param win: surface
         :return: int
         """
         super().draw_radius(win)
         super().draw(win)
 
-        # 控制正弦波的振幅和频率
-        amplitude = 12  # 振幅，控制波动的大小
-        frequency = 450  # 频率，控制波动的速度（越大越慢）
+        # Sine wave control for amplitude and frequency
+        amplitude = 12  # Amplitude controlling the wave size
+        frequency = 450  # Frequency controlling wave speed (higher = slower)
 
-        # 使用正弦函数计算石头的上下偏移量
+        # Calculate the vertical offset using a sine function
         rock_offset = int(amplitude * math.sin(pygame.time.get_ticks() / frequency))
 
-        # 偏移参数，用于微调石头位置
-        horizontal_offset = -6  # 水平方向的微调
-        vertical_offset = -10  # 垂直方向的微调
+        # Horizontal and vertical adjustment offsets
+        horizontal_offset = -6  # Horizontal fine-tuning
+        vertical_offset = -10  # Vertical fine-tuning
 
-        # 计算石头的位置
+        # Calculate rock position
         rock_x = self.x + horizontal_offset
         rock_y = (
             self.y
@@ -88,16 +87,16 @@ class StoneTower(Tower):
             + rock_offset
         )
 
-        # 绘制石头
+        # Draw the rock
         win.blit(rock_img, (rock_x - rock_img.get_width() // 2, rock_y))
 
-        # 绘制所有弹道
+        # Draw all projectiles
         for projectile in self.projectiles:
             projectile.draw(win)
 
     def change_range(self, r):
         """
-        change range of archer tower
+        Change the tower's attack range
         :param r: int
         :return: None
         """
@@ -105,21 +104,20 @@ class StoneTower(Tower):
 
     def attack(self, enemies):
         """
-        攻击范围内的敌人
-        :param enemies: 敌人列表
-        :return: int (获得的金钱)
+        Attack enemies within range
+        :param enemies: list of enemies
+        :return: int (money earned)
         """
-        self.attack_count += 1  # 每帧递增攻击计数器
+        self.attack_count += 1  # Increment attack counter per frame
         if self.attack_count < self.attack_speed:
-            return 0  # 未达到攻速要求，不进行攻击
+            return 0  # Skip attack if attack speed threshold not met
 
-        # 攻击逻辑
         money = 0
-        self.attack_count = 0  # 重置攻击计数器
+        self.attack_count = 0  # Reset attack counter
         self.inRange = False
         enemy_closest = []
 
-        # 检测范围内的敌人
+        # Check for enemies within range
         for enemy in enemies:
             x, y = enemy.x, enemy.y
             dis = math.sqrt((self.x - enemy.img.get_width() / 2 - x) ** 2 +
@@ -128,10 +126,10 @@ class StoneTower(Tower):
                 self.inRange = True
                 enemy_closest.append(enemy)
 
-        # 按照路径位置排序，优先攻击最近的敌人
+        # Sort enemies by path position to prioritize closest ones
         enemy_closest.sort(key=lambda x: x.path_pos)
 
-        # 对第一个敌人进行攻击
+        # Attack the first enemy in range
         if len(enemy_closest) > 0:
             first_enemy = enemy_closest[0]
             if first_enemy.hit(self.damage):
@@ -142,41 +140,41 @@ class StoneTower(Tower):
 
     def update_projectiles(self, enemies):
         """
-        更新所有弹道的位置，并处理命中逻辑
-        :param enemies: 敌人列表
+        Update projectile positions and handle hit logic
+        :param enemies: list of enemies
         """
         for projectile in self.projectiles[:]:
             projectile.move()
-            if projectile.hit_target:  # 如果弹道命中目标
+            if projectile.hit_target:  # If projectile hits the target
                 if projectile.target in enemies:
-                    if projectile.target.hit(projectile.damage):  # 目标受到伤害
-                        enemies.remove(projectile.target)  # 如果目标死亡，移除
-                self.projectiles.remove(projectile)  # 移除命中的弹道
+                    if projectile.target.hit(projectile.damage):  # Target takes damage
+                        enemies.remove(projectile.target)  # Remove if target dies
+                self.projectiles.remove(projectile)  # Remove projectile on hit
 
 
 class Projectile:
     def __init__(self, x, y, target, img, damage):
         """
-        初始化弹道
-        :param x: 弹道初始x坐标
-        :param y: 弹道初始y坐标
-        :param target: 目标敌人
-        :param img: 弹道图像
-        :param damage: 弹道伤害
+        Initialize a projectile
+        :param x: initial x-coordinate
+        :param y: initial y-coordinate
+        :param target: target enemy
+        :param img: projectile image
+        :param damage: projectile damage
         """
         self.x = x
         self.y = y
         self.target = target
         self.img = img
         self.damage = damage
-        self.speed = 10  # 弹道速度
-        self.hit_target = False  # 是否命中目标
+        self.speed = 10  # Projectile speed
+        self.hit_target = False  # Whether it hit the target
 
     def move(self):
         """
-        移动弹道，使其向目标移动
+        Move the projectile towards the target
         """
-        if self.target and self.target.health > 0:  # 检查目标是否有效
+        if self.target and self.target.health > 0:  # Check if the target is valid
             target_x = self.target.x + self.target.img.get_width() // 2
             target_y = self.target.y + self.target.img.get_height() // 2
             dir_x, dir_y = target_x - self.x, target_y - self.y
@@ -187,14 +185,14 @@ class Projectile:
                 self.x += dir_x * self.speed
                 self.y += dir_y * self.speed
 
-            # 检测是否命中目标
-            if dist < 10:  # 命中距离
+            # Check if it hits the target
+            if dist < 10:  # Hit distance
                 self.hit_target = True
         else:
-            self.hit_target = True  # 如果目标无效，视为命中并移除
+            self.hit_target = True  # If target is invalid, mark as hit
 
     def draw(self, win):
         """
-        绘制弹道
+        Draw the projectile
         """
         win.blit(self.img, (self.x - self.img.get_width() // 2, self.y - self.img.get_height() // 2))
