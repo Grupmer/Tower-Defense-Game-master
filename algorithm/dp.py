@@ -17,45 +17,45 @@ class Monster:
         self.name = name
 
 def init_game():
-    """初始化塔和怪物"""
-    # 定义每个位置的攻击时间
+    """Initialize towers and monsters"""
+    # Define dwelling time at each position
     position_times = {
-        0: 3.71,    # 第一个位置停留3.71秒
-        1: 6.00,    # 第二个位置停留6.00秒
-        2: 6.12,    # 第三个位置停留6.12秒
-        3: 6.02,    # 第四个位置停留6.02秒
-        4: 5.92     # 第五个位置停留5.92秒
+        0: 3.71,    # First position stays for 3.71 seconds
+        1: 6.00,    # Second position stays for 6.00 seconds
+        2: 6.12,    # Third position stays for 6.12 seconds
+        3: 6.02,    # Fourth position stays for 6.02 seconds
+        4: 5.92     # Fifth position stays for 5.92 seconds
     }
     
     towers = [
-        # 箭塔：攻速快,便宜,适合打低护甲
-        Tower(25, 0.5, 300, "ArrowTower", is_magic=False),  # 5秒=250伤害,性价比=0.83
+        # Arrow Tower: Fast attack, cheap, suitable for low armor
+        Tower(25, 0.5, 300, "ArrowTower", is_magic=False),  # 5 seconds = 250 damage, cost-effectiveness = 0.83
 
-        # 炮塔：高伤害,贵,适合打高血量
-        Tower(120, 2.0, 800, "CannonTower", is_magic=False),  # 5秒=300伤害,性价比=0.375
+        # Cannon Tower: High damage, expensive, suitable for high HP
+        Tower(120, 2.0, 800, "CannonTower", is_magic=False),  # 5 seconds = 300 damage, cost-effectiveness = 0.375
 
-        # 魔法塔：中等,适合打高护甲
-        Tower(45, 1.0, 500, "MagicTower", is_magic=True)  # 5秒=225伤害,性价比=0.45
+        # Magic Tower: Medium, suitable for high armor
+        Tower(45, 1.0, 500, "MagicTower", is_magic=True)  # 5 seconds = 225 damage, cost-effectiveness = 0.45
     ]
     
     monsters = [
-        # 小怪1：低血量,低护甲,高魔抗 -> 适合箭塔
-        Monster(120, 5, 60, "快速小兵"), 
+        # Small Monster 1: Low HP, low armor, high magic resist -> suitable for arrow tower
+        Monster(120, 5, 60, "Quick Soldier"), 
 
-        # 小怪2：低血量,高护甲,低魔抗 -> 适合魔法塔
-        Monster(120, 40, 10, "重甲小兵"),
+        # Small Monster 2: Low HP, high armor, low magic resist -> suitable for magic tower
+        Monster(120, 40, 10, "Armored Soldier"),
 
-        # 精英：中等血量,双高抗 -> 需要多塔配合
-        Monster(250, 30, 30, "精英怪"),
+        # Elite: Medium HP, high resistances -> requires multiple towers
+        Monster(250, 30, 30, "Elite Monster"),
 
-        # BOSS：高血量,抗性适中 -> 需要高伤害
+        # BOSS: High HP, moderate resistance -> requires high damage
         Monster(400, 20, 20, "BOSS")
     ]
     
     return towers, monsters, position_times
 
 def calculate_damage_over_path(placement, monster, position_times):
-    """计算怪物经过所有塔获得的总伤害"""
+    """Calculate total damage monster receives from all towers"""
     total_damage = 0
     for pos, tower in placement:
         if tower.is_magic:
@@ -69,7 +69,7 @@ def calculate_damage_over_path(placement, monster, position_times):
     return total_damage
 
 def can_kill_monster(placement, monster, position_times):
-    """判断是否能击杀怪物"""
+    """Determine if the monster can be killed"""
     total_damage = calculate_damage_over_path(placement, monster, position_times)
     return total_damage >= monster.hp
 
@@ -80,7 +80,7 @@ def dp_placement(positions=5, initial_gold=3000):
     required_m1, required_m2, required_b1, required_b2 = 2, 2, 1, 1
 
     def update_requirements(current_placement, m1, m2, b1, b2):
-        # 若可以击杀对应怪物，则需求置0
+        # If monster can be killed, set requirement to 0
         if m1 > 0 and can_kill_monster(current_placement, monsters[0], position_times):
             m1 = 0
         if m2 > 0 and can_kill_monster(current_placement, monsters[1], position_times):
@@ -92,15 +92,15 @@ def dp_placement(positions=5, initial_gold=3000):
         return m1, m2, b1, b2
 
     def solve(pos, m1, m2, b1, b2, gold_left, current_placement):
-        # 更新需求
+        # Update requirements
         m1, m2, b1, b2 = update_requirements(current_placement, m1, m2, b1, b2)
         
-        # 如果已经满足全部需求，则cost为0（不需要放更多塔）
+        # If all requirements are met, cost is 0 (no need to place more towers)
         if m1 == 0 and m2 == 0 and b1 == 0 and b2 == 0:
             return 0, current_placement
 
         if pos == 0:
-            # 没有位置可放且仍未满足需求
+            # No positions left and requirements not met
             return float('inf'), current_placement
             
         state = (pos, m1, m2, b1, b2, gold_left)
@@ -110,19 +110,19 @@ def dp_placement(positions=5, initial_gold=3000):
         min_cost = float('inf')
         best_placement = current_placement
 
-        # 尝试不放塔
+        # Try not placing a tower
         cost, placement = solve(pos-1, m1, m2, b1, b2, gold_left, current_placement)
         if cost < min_cost:
             min_cost = cost
             best_placement = placement
 
-        # 尝试在此位置放置每种塔
+        # Try placing each type of tower
         for tower in towers:
             if tower.cost <= gold_left:
                 new_placement = [(pos-1, tower)] + current_placement
                 new_m1, new_m2, new_b1, new_b2 = update_requirements(new_placement, m1, m2, b1, b2)
                 
-                # 继续尝试其他塔，以寻找更便宜的方案
+                # Continue trying other towers to find a cheaper solution
                 new_cost, new_pl = solve(pos-1, new_m1, new_m2, new_b1, new_b2, gold_left - tower.cost, new_placement)
                 total_cost = tower.cost + new_cost
                 if total_cost < min_cost:
@@ -134,7 +134,7 @@ def dp_placement(positions=5, initial_gold=3000):
 
     dp_cost, dp_result = solve(positions, required_m1, required_m2, required_b1, required_b2, initial_gold, [])
 
-    # 提取塔的位置和名称
+    # Extract tower positions and names
     tower_pos_output = [pos for pos, _ in dp_result]
     tower_name_output = [tower.name for _, tower in dp_result]
 
