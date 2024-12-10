@@ -46,13 +46,13 @@ restart_btn = pygame.transform.scale(
 
 # Algorithm button at the the lower mid-left corner
 greedy_btn = pygame.transform.scale(
-    pygame.image.load(os.path.join("game_assets/icon","button_start.png")).convert_alpha(), (75, 75))
+    pygame.image.load(os.path.join("game_assets/icon","button_greedy.png")).convert_alpha(), (75, 75))
 dp_btn = pygame.transform.scale(
-    pygame.image.load(os.path.join("game_assets/icon","button_start.png")).convert_alpha(), (75, 75))
+    pygame.image.load(os.path.join("game_assets/icon","button_dp.png")).convert_alpha(), (75, 75))
 q_train_btn = pygame.transform.scale(
-    pygame.image.load(os.path.join("game_assets/icon","button_start.png")).convert_alpha(), (75, 75))
+    pygame.image.load(os.path.join("game_assets/icon","button_qtraining.png")).convert_alpha(), (75, 75))
 q_play_btn = pygame.transform.scale(
-    pygame.image.load(os.path.join("game_assets/icon","button_start.png")).convert_alpha(), (75, 75))
+    pygame.image.load(os.path.join("game_assets/icon","button_qinference.png")).convert_alpha(), (75, 75))
 
 # backgrouund
 wave_bg = pygame.transform.scale(pygame.image.load(os.path.join("game_assets","wave.png")).convert_alpha(), (225, 75))
@@ -763,7 +763,7 @@ class Game_q(Game):
         if post_tower_count > pre_tower_count:
             # 成功放置塔
             cost = pre_money - post_money
-            cost_penalty = cost * 0.1
+            cost_penalty = cost * 0.5
 
             # 记录有效放置的状态和动作
             current_state = self.get_state()
@@ -783,8 +783,14 @@ class Game_q(Game):
         # killed = old_enemy_count - len(self.enemys)
         # reward += killed * 50
 
-        if len(self.attack_towers) + len(self.support_towers) >= 5:
-            reward -= 0.1
+        if len(self.attack_towers) + len(self.support_towers) >= 2:
+            reward -= 0.01
+        elif len(self.attack_towers) + len(self.support_towers) >= 3:
+            reward -= 0.03
+        elif len(self.attack_towers) + len(self.support_towers) >= 4:
+            reward -= 0.08
+        elif len(self.attack_towers) + len(self.support_towers) >= 5:
+            reward -= 0.22
 
         reward += cost_penalty
 
@@ -890,7 +896,6 @@ class Game_q(Game):
         self.reset_game()
         run_game = True
         clock = pygame.time.Clock()
-        self.tick_counter = 0  # 初始化tick计数器
 
         while run_game:
             clock.tick(self.policy_tick_speed)

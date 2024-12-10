@@ -3,9 +3,9 @@ import pygame
 import os
 
 
-start_btn_left = pygame.image.load(os.path.join("game_assets/icon", "button_left.png")).convert_alpha()
-start_btn_right = pygame.image.load(os.path.join("game_assets/icon", "button_right.png")).convert_alpha()
-logo = pygame.image.load(os.path.join("game_assets", "logo.png")).convert_alpha()
+start_btn_left = pygame.image.load(os.path.join("game_assets/icon", "button_traditionalAlgo.png")).convert_alpha()
+start_btn_right = pygame.image.load(os.path.join("game_assets/icon", "button_aiAlgo.png")).convert_alpha()
+logo = pygame.image.load(os.path.join("game_assets", "logo1.png")).convert_alpha()
 
 
 class MainMenu:
