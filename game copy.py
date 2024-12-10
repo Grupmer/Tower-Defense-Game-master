@@ -134,9 +134,19 @@ class Game:
         # find two closest points
         return True
 
+        # loop through support towers
+        for tw in self.support_towers:
+            tw.support(self.attack_towers)
+
+        # if you lose
+        if self.lives <= 0:
+            print("You Lose")
+            pygame.time.delay(3000)
+            pygame.quit()
+            exit()
     def get_tower_cost(self, tower_name):
         """
-        补丁，用来获取塔价格
+        Patch to get the cost of a tower.
         """
         name_cost_mapping = {
             "archer": 500,
@@ -149,6 +159,13 @@ class Game:
         return name_cost_mapping.get(tower_name, 0)
 
     def is_valid_position(self, x, y, threshold=80):
+        """
+        Check if a given position is valid for placing a tower.
+        :param x: X-coordinate
+        :param y: Y-coordinate
+        :param threshold: Distance threshold for valid positions
+        :return: Valid position or None if invalid
+        """
         for pos in self.valid_positions:
             if abs(x - pos[0]) < threshold and abs(y - pos[1]) < threshold:
                 return pos
@@ -156,7 +173,8 @@ class Game:
 
     def add_tower(self, name):
         """
-        准备放置塔，由用户点击地图第二次来完成放置
+        Prepare to place a tower, completed by the user clicking on the map a second time.
+        :param name: Name of the tower to be placed
         """
         x, y = pygame.mouse.get_pos()
         name_list = ["buy_archer", "buy_archer_2", "buy_damage", "buy_range", "buy_stone", "buy_magic"]
@@ -174,36 +192,40 @@ class Game:
             self.moving_object = obj
             obj.moving = True
         except ValueError:
-            print(f"{name} 不是一个有效的塔名称！")
+            print(f"{name} is not a valid tower name!")
 
     def place_tower(self, pos):
+        """
+        Place the tower at the specified position.
+        :param pos: Tuple (x, y) coordinates
+        """
         if self.moving_object is None:
             return
 
         x, y = pos
-        # 检查是否点击在合法位置
+        # Check if the position is valid
         valid_pos = self.is_valid_position(x, y)
         if not valid_pos:
-            print("请选择一个合法的位置放置塔！")
+            print("Please choose a valid position to place the tower!")
             self.moving_object = None
             return
 
-        # 检查是否与现有塔重叠
+        # Check if the position is already occupied
         tower_list = self.attack_towers + self.support_towers
         for tower in tower_list:
             if tower.x == valid_pos[0] and tower.y == valid_pos[1]:
-                print("该位置已被其他塔占据！")
+                print("This position is already occupied by another tower!")
                 self.moving_object = None
                 return
 
-        # 获取塔的成本
+        # Get the tower cost
         cost = self.get_tower_cost(self.moving_object.name)
         if self.money < cost:
-            print("金钱不足，无法放置该塔！")
+            print("Not enough money to place this tower!")
             self.moving_object = None
             return
 
-        # 放置塔
+        # Place the tower
         self.moving_object.x, self.moving_object.y = valid_pos
         if self.moving_object.name in attack_tower_names:
             self.attack_towers.append(self.moving_object)
@@ -212,50 +234,38 @@ class Game:
             self.support_towers.append(self.moving_object)
             self.money -= cost
         else:
-            print("未知的塔类型！")
+            print("Unknown tower type!")
             self.moving_object = None
             return
 
-        # 放置成功，清除选中状态
+        # Successfully placed, clear selected state
         self.moving_object.moving = False
         self.moving_object = None
         self.selected_tower_type = None
 
     def update_game_state(self):
         """
-        更新敌人和塔的位置，处理攻击和检查游戏结束
+        Update the positions of enemies and towers, handle attacks, and check for game over.
         """
-        # loop through enemies
+        # Loop through enemies
         to_del = []
         for en in self.enemys:
             en.move()
             if en.x < -15:
                 to_del.append(en)
 
-        # delete all enemies off the screen
+        # Delete all enemies off the screen
         for d in to_del:
             self.lives -= 1
             self.enemys.remove(d)
 
-        # loop through attack towers
+        # Loop through attack towers
         for tw in self.attack_towers:
-            if tw.name in attack_tower_with_bullet:  # 仅处理带有弹道的塔
-                tw.attack(self.enemys)  # 仅生成弹道，不处理命中和伤害
-                self.money += tw.update_projectiles(self.enemys)  # 更新弹道并处理命中
-
-            else:  # 非弹道塔的直接攻击逻辑
+            if tw.name in attack_tower_with_bullet:  # Process towers with projectiles
+                tw.attack(self.enemys)  # Generate projectiles, do not handle hits
+                self.money += tw.update_projectiles(self.enemys)  # Update projectiles and handle hits
+            else:  # Direct attack logic for non-projectile towers
                 self.money += tw.attack(self.enemys)
-
-        # loop through support towers
-        for tw in self.support_towers:
-            tw.support(self.attack_towers)
-
-        # if you lose
-        if self.lives <= 0:
-            print("You Lose")
-            pygame.time.delay(3000)
-            pygame.quit()
-            exit()
 
     def draw(self):
         self.win.blit(self.bg, (0, 0))
@@ -322,103 +332,6 @@ class Game:
 
         pygame.display.update()
 
-    def run(self):
-        """
-        运行传统游戏。有两个额外的按钮可以运行传统算法，并自动放置防御塔。
-        """
-        pygame.mixer.music.play(loops=-1)
-        run_game = True
-        clock = pygame.time.Clock()
-        while run_game:
-            clock.tick(60)
-
-            if not self.pause:
-                # 生成敌人
-                # 0.33, 0.5
-                if time.time() - self.timer >= random.uniform(0.5, 0.5):
-                    self.timer = time.time()
-                    self.gen_enemies()
-
-            pos = pygame.mouse.get_pos()
-
-            # Handle moving towers (if any)
-            if self.moving_object:
-                self.moving_object.move(pos[0], pos[1])
-                tower_list = self.attack_towers + self.support_towers
-                collide = False
-                for tower in tower_list:
-                    if tower.collide(self.moving_object):
-                        collide = True
-                        tower.place_color = (255, 0, 0, 100)
-                        self.moving_object.place_color = (255, 0, 0, 100)
-                    else:
-                        tower.place_color = (0, 0, 255, 100)
-                        if not collide:
-                            self.moving_object.place_color = (0, 0, 255, 100)
-
-            # Event
-            for event in pygame.event.get():
-                if event.type == pygame.QUIT:
-                    run_game = False
-
-                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
-                    if self.moving_object:
-                        # 如果正在放置塔，点击地图尝试放置
-                        self.place_tower(pygame.mouse.get_pos())
-                    else:
-                        # 检查是否点击了菜单中的塔
-                        side_menu_button = self.menu.get_clicked(pos[0], pos[1])
-                        if side_menu_button:
-                            # 选择塔类型
-                            self.selected_tower_type = side_menu_button
-                            self.add_tower(self.selected_tower_type)
-                            continue  # 防止后续点击处理
-
-                        # 检查是否点击了控制按钮
-                        if self.playPauseButton.click(pos[0], pos[1]):
-                            self.pause = not self.pause
-                            self.playPauseButton.paused = self.pause
-
-                        elif self.soundButton.click(pos[0], pos[1]):
-                            self.music_on = not (self.music_on)
-                            self.soundButton.paused = self.music_on
-                            if self.music_on:
-                                pygame.mixer.music.unpause()
-                            else:
-                                pygame.mixer.music.pause()
-
-                        # 检查是否点击了AI按钮（未完成）
-                        #if self.playPauseButton.click(pos[0], pos[1]):
-
-                        # look if you clicked on attack tower or support tower
-                        btn_clicked = None
-                        if self.selected_tower:
-                            btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
-                            if btn_clicked:
-                                if btn_clicked == "Upgrade":
-                                    cost = self.selected_tower.get_upgrade_cost()
-                                    if self.money >= cost:
-                                        self.money -= cost
-                                        self.selected_tower.upgrade()
-                                    else:
-                                        print("没有足够的金钱进行升级")
-
-                        if not (btn_clicked):
-                            for tw in self.attack_towers:
-                                if tw.click(pos[0], pos[1]):
-                                    tw.selected = True
-                                    self.selected_tower = tw
-                                else:
-                                    tw.selected = False
-
-                            # look if you clicked on support tower
-                            for tw in self.support_towers:
-                                if tw.click(pos[0], pos[1]):
-                                    tw.selected = True
-                                    self.selected_tower = tw
-                                else:
-                                    tw.selected = False
-
             # update game state
             if not self.pause:
                 self.update_game_state()
@@ -427,10 +340,9 @@ class Game:
             self.draw()
 
         pygame.quit()
-
-    def run_q(self):
+    def run(self):
         """
-        运行人工智能算法，包含训练和最终演示一次。
+        Run the traditional game. Two additional buttons allow traditional algorithms to run and automatically place defense towers.
         """
         pygame.mixer.music.play(loops=-1)
         run_game = True
@@ -439,7 +351,7 @@ class Game:
             clock.tick(60)
 
             if not self.pause:
-                # 生成敌人
+                # Generate enemies
                 # 0.33, 0.5
                 if time.time() - self.timer >= random.uniform(0.5, 0.5):
                     self.timer = time.time()
@@ -469,34 +381,34 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self.moving_object:
-                        # 如果正在放置塔，点击地图尝试放置
+                        # If a tower is being placed, try placing it on the map
                         self.place_tower(pygame.mouse.get_pos())
                     else:
-                        # 检查是否点击了菜单中的塔
+                        # Check if a tower was clicked in the menu
                         side_menu_button = self.menu.get_clicked(pos[0], pos[1])
                         if side_menu_button:
-                            # 选择塔类型
+                            # Select the tower type
                             self.selected_tower_type = side_menu_button
                             self.add_tower(self.selected_tower_type)
-                            continue  # 防止后续点击处理
+                            continue  # Prevent further click handling
 
-                        # 检查是否点击了控制按钮
+                        # Check if a control button was clicked
                         if self.playPauseButton.click(pos[0], pos[1]):
                             self.pause = not self.pause
                             self.playPauseButton.paused = self.pause
 
                         elif self.soundButton.click(pos[0], pos[1]):
-                            self.music_on = not (self.music_on)
+                            self.music_on = not self.music_on
                             self.soundButton.paused = self.music_on
                             if self.music_on:
                                 pygame.mixer.music.unpause()
                             else:
                                 pygame.mixer.music.pause()
 
-                        # 检查是否点击了AI按钮（未完成）
-                        #if self.playPauseButton.click(pos[0], pos[1]):
+                        # Check if AI button was clicked (not yet implemented)
+                        # if self.playPauseButton.click(pos[0], pos[1]):
 
-                        # look if you clicked on attack tower or support tower
+                        # Check if an attack or support tower was clicked
                         btn_clicked = None
                         if self.selected_tower:
                             btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
@@ -507,9 +419,9 @@ class Game:
                                         self.money -= cost
                                         self.selected_tower.upgrade()
                                     else:
-                                        print("没有足够的金钱进行升级")
+                                        print("Not enough money to upgrade")
 
-                        if not (btn_clicked):
+                        if not btn_clicked:
                             for tw in self.attack_towers:
                                 if tw.click(pos[0], pos[1]):
                                     tw.selected = True
@@ -517,7 +429,103 @@ class Game:
                                 else:
                                     tw.selected = False
 
-                            # look if you clicked on support tower
+                            # Check if a support tower was clicked
+                            for tw in self.support_towers:
+                                if tw.click(pos[0], pos[1]):
+                                    tw.selected = True
+                                    self.selected_tower = tw
+                                else:
+                                    tw.selected = False
+    def run_q(self):
+        """
+        Run the AI algorithm, including training and a final demonstration.
+        """
+        pygame.mixer.music.play(loops=-1)
+        run_game = True
+        clock = pygame.time.Clock()
+        while run_game:
+            clock.tick(60)
+
+            if not self.pause:
+                # Generate enemies
+                # 0.33, 0.5
+                if time.time() - self.timer >= random.uniform(0.5, 0.5):
+                    self.timer = time.time()
+                    self.gen_enemies()
+
+            pos = pygame.mouse.get_pos()
+
+            # Handle moving towers (if any)
+            if self.moving_object:
+                self.moving_object.move(pos[0], pos[1])
+                tower_list = self.attack_towers + self.support_towers
+                collide = False
+                for tower in tower_list:
+                    if tower.collide(self.moving_object):
+                        collide = True
+                        tower.place_color = (255, 0, 0, 100)
+                        self.moving_object.place_color = (255, 0, 0, 100)
+                    else:
+                        tower.place_color = (0, 0, 255, 100)
+                        if not collide:
+                            self.moving_object.place_color = (0, 0, 255, 100)
+
+            # Event handling
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run_game = False
+
+                if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                    if self.moving_object:
+                        # If a tower is being placed, try placing it on the map
+                        self.place_tower(pygame.mouse.get_pos())
+                    else:
+                        # Check if a tower was clicked in the menu
+                        side_menu_button = self.menu.get_clicked(pos[0], pos[1])
+                        if side_menu_button:
+                            # Select the tower type
+                            self.selected_tower_type = side_menu_button
+                            self.add_tower(self.selected_tower_type)
+                            continue  # Prevent further click handling
+
+                        # Check if a control button was clicked
+                        if self.playPauseButton.click(pos[0], pos[1]):
+                            self.pause = not self.pause
+                            self.playPauseButton.paused = self.pause
+
+                        elif self.soundButton.click(pos[0], pos[1]):
+                            self.music_on = not self.music_on
+                            self.soundButton.paused = self.music_on
+                            if self.music_on:
+                                pygame.mixer.music.unpause()
+                            else:
+                                pygame.mixer.music.pause()
+
+                        # Check if an AI button was clicked (not yet implemented)
+                        # if self.playPauseButton.click(pos[0], pos[1]):
+
+                        # Check if an attack or support tower was clicked
+                        btn_clicked = None
+                        if self.selected_tower:
+                            btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
+                            if btn_clicked:
+                                if btn_clicked == "Upgrade":
+                                    cost = self.selected_tower.get_upgrade_cost()
+                                    if self.money >= cost:
+                                        self.money -= cost
+                                        self.selected_tower.upgrade()
+                                    else:
+                                        print("Not enough money to upgrade")
+
+                        if not btn_clicked:
+                            for tw in self.attack_towers:
+                                if tw.click(pos[0], pos[1]):
+                                    tw.selected = True
+                                    self.selected_tower = tw
+                                else:
+                                    tw.selected = False
+
+                            # Check if a support tower was clicked
                             for tw in self.support_towers:
                                 if tw.click(pos[0], pos[1]):
                                     tw.selected = True
@@ -525,11 +533,11 @@ class Game:
                                 else:
                                     tw.selected = False
 
-            # update game state
+            # Update game state
             if not self.pause:
                 self.update_game_state()
 
-            # draw all elements
+            # Draw all elements
             self.draw()
 
         pygame.quit()
