@@ -28,7 +28,7 @@ def init_game():
     }
     
     towers = [
-        # Arrow Tower: Fast attack, cheap, suitable for low armor
+        # Arrow Tower: Fast attack, cheap and suitable for low armor
         Tower(25, 0.5, 300, "ArrowTower", is_magic=False),  # 5 seconds = 250 damage, cost-effectiveness = 0.83
 
         # Cannon Tower: High damage, expensive, suitable for high HP
