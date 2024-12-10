@@ -149,7 +149,7 @@ class Game:
 
     def get_tower_cost(self, tower_name):
         """
-        补丁，用来获取塔价格
+        Patch used to retrieve tower prices.
         """
         name_cost_mapping = {
             "archer": 300,
@@ -831,122 +831,291 @@ class Game_q(Game):
         self.policy_mode = False
         self.training_done = False
         clock = pygame.time.Clock()
-def run(self):
-    """
-    Run the traditional game. Two additional buttons allow running traditional algorithms and automatically placing towers.
-    """
-    pygame.mixer.music.play(loops=-1)
-    run_game = True
-    clock = pygame.time.Clock()
+    def run_q_learning(self):
+        """
+        Executes training after clicking the qButton:
+        1. Only trains for the first wave of enemies.
+        2. Restarts each episode from the beginning during training.
+        3. Ends the episode when the first wave ends or the game is lost.
+        """
+        self.policy_mode = False
+        self.training_done = False
+        clock = pygame.time.Clock()
 
-    name_map = {
-        "MagicTower": "buy_magic",
-        "ArrowTower": "buy_archer",
-        "CannonTower": "buy_stone"
-    }
+        for episode in range(self.num_training_episodes):
+            self.reset_game()
+            self.display_q_table(episode)  # Display Q-table
+            done = False
+            self.tick_counter = 0
 
-    while run_game:
-        clock.tick(60)  # 60 FPS
-        self.tick_counter += 1  # Increment tick counter per frame
+            while not done:
+                clock.tick(self.training_tick_speed)
+                self.tick_counter += 1  # Increment tick counter
 
-        if not self.pause:
-            self.gen_enemies()  # Generate enemies based on tick
+                state = self.get_state()
+                old_lives = self.lives
+                old_enemy_count = len(self.enemys)
+                old_money = self.money
 
-        pos = pygame.mouse.get_pos()
+                action_idx = self.choose_action(state)
+                cost_penalty = self.take_action(action_idx)
 
-        # Handle moving towers (if any)
-        if self.moving_object:
-            self.moving_object.move(pos[0], pos[1])
-            tower_list = self.attack_towers + self.support_towers
-            collide = False
-            for tower in tower_list:
-                if tower.collide(self.moving_object):
-                    collide = True
-                    tower.place_color = (255, 0, 0, 100)
-                    self.moving_object.place_color = (255, 0, 0, 100)
-                else:
-                    tower.place_color = (0, 0, 255, 100)
-                    if not collide:
-                        self.moving_object.place_color = (0, 0, 255, 100)
+                # Update game state
+                if not self.pause:
+                    self.gen_enemies_q()  # Specialized enemy generation
+                    self.update_game_state()
 
-        # Event handling
-        for event in pygame.event.get():
-            if event.type == pygame.QUIT:
+                next_state = self.get_state()
+                reward = self.compute_reward(old_lives, old_enemy_count, old_money, cost_penalty)
+
+                old_q = self.get_q_value(state, action_idx)
+                future_val = self.compute_value_from_q_values(next_state)
+                new_q = old_q + self.alpha * (reward + self.gamma * future_val - old_q)
+                self.set_q_value(state, action_idx, new_q)
+
+                # Check episode termination conditions
+                # First wave ends if current_wave is empty and no enemies remain
+                if (sum(self.current_wave) == 0 and len(self.enemys) == 0) or self.lives <= 0:
+                    done = True
+
+                    # Adjust scores for effective states when the game ends
+                    if self.lives > 9:  # Perfect game
+                        for state, action_idx in self.effective_states:
+                            old_q = self.get_q_value(state, action_idx)
+                            self.set_q_value(state, action_idx, old_q + 300)
+                    elif self.lives > 8:
+                        for state, action_idx in self.effective_states:
+                            old_q = self.get_q_value(state, action_idx)
+                            self.set_q_value(state, action_idx, old_q - 300)
+                    elif self.lives > 6:
+                        for state, action_idx in self.effective_states:
+                            old_q = self.get_q_value(state, action_idx)
+                            self.set_q_value(state, action_idx, old_q - 500)
+                    else:  # Game over
+                        for state, action_idx in self.effective_states:
+                            old_q = self.get_q_value(state, action_idx)
+                            self.set_q_value(state, action_idx, old_q - 99999)
+
+                    # Clear effective states for the next game
+                    self.effective_states = []
+
+            # Decay epsilon
+            if self.epsilon > self.min_epsilon:
+                self.epsilon *= self.epsilon_decay
+
+        self.save_q_table()
+
+        self.training_done = True
+        self.policy_mode = True
+        self.epsilon = 0.0
+        self.run_policy_demo()
+
+    def run_policy_demo(self):
+        """
+        Demonstrates the trained policy once.
+        """
+        self.load_q_table()  # Load Q-table before demonstration
+
+        self.reset_game()
+        run_game = True
+        clock = pygame.time.Clock()
+
+        while run_game:
+            clock.tick(self.policy_tick_speed)
+            self.tick_counter += 1  # Increment tick counter
+
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    run_game = False
+
+            if self.lives <= 0 or (sum(self.current_wave) == 0 and len(self.enemys) == 0):
                 run_game = False
+                break
 
-            if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+            # Use greedy policy
+            state = self.get_state()
+            q_values = [(self.get_q_value(state, a_idx), a_idx) for a_idx in range(len(self.actions))]
+            q_values.sort(key=lambda x: x[0], reverse=True)
+            best_action_idx = q_values[0][1]
+            self.take_action(best_action_idx)
+
+            print(f"Tick: {self.tick_counter}, State: {state}, Q-Values: {q_values}, Best Action: {best_action_idx}")
+
+            if not self.pause:
+                self.gen_enemies()
+                self.update_game_state()
+
+            self.draw()
+            pygame.display.update()
+
+    def save_q_table(self, filename="q_table.pkl"):
+        """
+        Save the Q-table to a file using pickle.
+        """
+        with open(filename, 'wb') as f:
+            pickle.dump(self.Q, f)
+        print(f"Q-table saved to {filename}")
+
+    def load_q_table(self, filename="q_table.pkl"):
+        """
+        Load the Q-table from a file using pickle.
+        """
+        try:
+            with open(filename, 'rb') as f:
+                self.Q = pickle.load(f)
+            print(f"Q-table loaded from {filename}.")
+        except FileNotFoundError:
+            print(f"Q-table file {filename} not found. Please train first.")
+            self.Q = {}
+
+    def save_q_table(self, filename="q_table.json"):
+        """
+        Save the Q-table to a file using JSON.
+        """
+        json_compatible_Q = {str(key): value for key, value in self.Q.items()}
+
+        with open(filename, 'w') as f:
+            json.dump(json_compatible_Q, f, indent=4)
+        print(f"Q-table saved to {filename}")
+
+    def load_q_table(self, filename="q_table.json"):
+        """
+        Load the Q-table from a file using JSON.
+        """
+        try:
+            with open(filename, 'r') as f:
+                json_compatible_Q = json.load(f)
+            self.Q = {eval(key): value for key, value in json_compatible_Q.items()}
+            print(f"Q-table loaded from {filename}.")
+        except FileNotFoundError:
+            print(f"Q-table file {filename} not found. Please train first.")
+            self.Q = {}
+
+    def display_q_table(self, episode):
+        print(f"Episode starting with state: {self.get_state()}")
+        for (state, action), value in self.Q.items():
+            print(f"State: {state}, Action: {action}, Q-Value: {value:.2f}")
+        print("-" * 50)
+
+        filename = "q_table_combined.txt"
+        with open(filename, 'a', encoding='utf-8') as file:
+            file.write(f"Q-Table for Episode {episode + 1}\n")
+            file.write("=" * 50 + "\n")
+            for (state, action), value in self.Q.items():
+                file.write(f"State: {state}, Action: {action}, Q-Value: {value:.2f}\n")
+            file.write("-" * 50 + "\n")
+
+    def draw(self):
+        super().draw(update=False)
+        self.qTrainButton.draw(self.win)
+        self.qPlayButton.draw(self.win)
+        pygame.display.update()
+
+    def run(self):
+        """
+        If the qButton is not clicked, the game runs like a regular game.
+        If the qButton is clicked, it calls run_q_learning, so this run behaves like Game.
+        """
+        pygame.mixer.music.play(loops=-1)
+        run_game = True
+        clock = pygame.time.Clock()
+        self.tick_counter = 0  # Initialize tick counter
+        print(self.actions)
+
+        while run_game:
+            clock.tick(60)
+            self.tick_counter += 1
+
+            pos = pygame.mouse.get_pos()
+
+            if self.training_done and self.policy_mode:
+                run_game = False
+                break
+
+            if not self.training_done and not self.policy_mode:
+                if not self.pause:
+                    self.gen_enemies()
+
                 if self.moving_object:
-                    # If a tower is being placed, attempt to place it on the map
-                    self.place_tower(pygame.mouse.get_pos())
-                else:
-                    # Check if a tower is selected from the menu
-                    side_menu_button = self.menu.get_clicked(pos[0], pos[1])
-                    if side_menu_button:
-                        # Select tower type
-                        self.selected_tower_type = side_menu_button
-                        self.add_tower(self.selected_tower_type)
-                        continue  # Prevent further event handling
-
-                    # Check if a control button is clicked
-                    if self.playPauseButton.click(pos[0], pos[1]):
-                        self.pause = not self.pause
-                        self.playPauseButton.paused = self.pause
-
-                    elif self.soundButton.click(pos[0], pos[1]):
-                        self.music_on = not self.music_on
-                        self.soundButton.paused = self.music_on
-                        if self.music_on:
-                            pygame.mixer.music.unpause()
+                    self.moving_object.move(pos[0], pos[1])
+                    tower_list = self.attack_towers + self.support_towers
+                    collide = False
+                    for tower in tower_list:
+                        if tower.collide(self.moving_object):
+                            collide = True
+                            tower.place_color = (255, 0, 0, 100)
+                            self.moving_object.place_color = (255, 0, 0, 100)
                         else:
-                            pygame.mixer.music.pause()
+                            tower.place_color = (0, 0, 255, 100)
+                            if not collide:
+                                self.moving_object.place_color = (0, 0, 255, 100)
 
-                    # Check the Q-learning button
-                    if self.qTrainButton.click(pos[0], pos[1]):
-                        # Start Q-learning training in a separate thread to avoid blocking the main loop
-                        import threading
-                        training_thread = threading.Thread(target=self.run_q_learning)
-                        training_thread.start()
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        run_game = False
+                    if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
+                        if self.moving_object:
+                            self.place_tower(pygame.mouse.get_pos())
+                        else:
+                            side_menu_button = self.menu.get_clicked(pos[0], pos[1])
+                            if side_menu_button:
+                                self.selected_tower_type = side_menu_button
+                                self.add_tower(self.selected_tower_type)
+                                continue
 
-                    if self.qPlayButton.click(pos[0], pos[1]):
-                        # Start policy demonstration
-                        # Ensure the Q-table is loaded before the demo
-                        if not self.Q:
-                            self.load_q_table()
-                        self.run_policy_demo()
+                            if self.playPauseButton.click(pos[0], pos[1]):
+                                self.pause = not self.pause
+                                self.playPauseButton.paused = self.pause
 
-                    # Look if an attack tower or support tower is clicked
-                    btn_clicked = None
-                    if self.selected_tower:
-                        btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
-                        if btn_clicked:
-                            if btn_clicked == "Upgrade":
-                                cost = self.selected_tower.get_upgrade_cost()
-                                if self.money >= cost:
-                                    self.money -= cost
-                                    self.selected_tower.upgrade()
+                            elif self.soundButton.click(pos[0], pos[1]):
+                                self.music_on = not self.music_on
+                                self.soundButton.paused = self.music_on
+                                if self.music_on:
+                                    pygame.mixer.music.unpause()
                                 else:
-                                    print("Not enough money to upgrade.")
+                                    pygame.mixer.music.pause()
 
-                    if not btn_clicked:
-                        for tw in self.attack_towers:
-                            if tw.click(pos[0], pos[1]):
-                                tw.selected = True
-                                self.selected_tower = tw
-                            else:
-                                tw.selected = False
+                            if self.qTrainButton.click(pos[0], pos[1]):
+                                import threading
+                                training_thread = threading.Thread(target=self.run_q_learning)
+                                training_thread.start()
 
-                        for tw in self.support_towers:
-                            if tw.click(pos[0], pos[1]):
-                                tw.selected = True
-                                self.selected_tower = tw
-                            else:
-                                tw.selected = False
+                            if self.qPlayButton.click(pos[0], pos[1]):
+                                if not self.Q:
+                                    self.load_q_table()
+                                self.run_policy_demo()
 
-        # Update game state
-        if not self.pause:
-            self.update_game_state()
+                            btn_clicked = None
+                            if self.selected_tower:
+                                btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
+                                if btn_clicked:
+                                    if btn_clicked == "Upgrade":
+                                        cost = self.selected_tower.get_upgrade_cost()
+                                        if self.money >= cost:
+                                            self.money -= cost
+                                            self.selected_tower.upgrade()
+                                        else:
+                                            print("Not enough money to upgrade.")
 
-        # Draw all elements
-        self.draw()
+                            if not btn_clicked:
+                                for tw in self.attack_towers:
+                                    if tw.click(pos[0], pos[1]):
+                                        tw.selected = True
+                                        self.selected_tower = tw
+                                    else:
+                                        tw.selected = False
 
-    pygame.quit()
+                                for tw in self.support_towers:
+                                    if tw.click(pos[0], pos[1]):
+                                        tw.selected = True
+                                        self.selected_tower = tw
+                                    else:
+                                        tw.selected = False
+
+                if not self.pause:
+                    self.update_game_state()
+
+                self.draw()
+
+        pygame.quit()
+        
