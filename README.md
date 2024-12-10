@@ -15,11 +15,11 @@ This project showcases a tower defense game we designed, focusing on strategic g
 # How to Run the Game Demo
 
 Running the game demo is simple and requires minimal setup. Follow the steps below to experience the project:
-## Ensure all necessary dependencies are installed. You can check the requirements.txt file for the required libraries.
-## Navigate to the project directory in your terminal.
-## Run the following command:
+1. Ensure all necessary dependencies are installed. You can check the requirements.txt file for the required libraries.
+2. Navigate to the project directory in your terminal.
+3. Run the following command:
 
-## python run.py
+   python run.py
 
 This will start the game demo, allowing you to test the gameplay and observe how the DP and Greedy algorithms optimize the tower placement.
 
