@@ -594,9 +594,9 @@ class Game_dp(Game):
 class Game_q(Game):
     def __init__(self, win):
         super().__init__(win)
-        self.qTrainButton = ActionButton(q_train_btn, 330, self.height - 85)
-        self.qPlayButton = ActionButton(q_play_btn, 410, self.height - 85)
-        self.valid_positions = [(117, 113), (544, 160), (1070, 160),  (899, 564), (485, 612)]
+        self.qTrainButton = ActionButton(q_train_btn, 600, self.height - 85)
+        self.qPlayButton = ActionButton(q_play_btn, 680, self.height - 85)
+        self.valid_positions = [(117, 113), (544, 160), (1070, 160), (899, 564), (485, 612)]
 
         # Q-learning相关参数
         self.alpha = 0.1
@@ -682,16 +682,34 @@ class Game_q(Game):
         return actions
 
     def get_state(self):
-        """
-        将状态简化为 (wave, discretized_money, built_positions)
-        - discretized_money: 金钱离散化为200一档
-        - built_positions: 5个可建造位置是否已经造了塔的二元状态
-        """
         discretized_money = self.money // 200  # 离散化金钱
-        built_positions = tuple(
-            1 if any((tower.x, tower.y) == pos for tower in self.attack_towers + self.support_towers) else 0
-            for pos in self.valid_positions
-        )
+
+        def tower_type_to_int(tower):
+            if "archer" in tower.name:
+                return 1
+            elif "stone" in tower.name:
+                return 2
+            elif "magic" in tower.name:
+                return 3
+            else:
+                return 0
+
+        built_positions = []
+        for pos in self.valid_positions:
+            # 找到该位置上的塔，如果有的话
+            tower_found = None
+            for tower in (self.attack_towers + self.support_towers):
+                if (tower.x, tower.y) == pos:
+                    tower_found = tower
+                    break
+
+            if tower_found:
+                built_positions.append(tower_type_to_int(tower_found))
+            else:
+                built_positions.append(0)
+
+        built_positions = tuple(built_positions)
+
         return (self.wave, self.lives, discretized_money, built_positions)
 
     def get_q_value(self, state, action):
@@ -741,14 +759,13 @@ class Game_q(Game):
             # 未知塔类型，给点惩罚
             return -50
 
-        """
         # 检查是否该位置已经有塔
         if pos in self.valid_positions:
             index = self.valid_positions.index(pos)
-            if any((tower.x, tower.y) == pos for tower in self.attack_towers + self.support_towers):
-                # 已经有塔，给惩罚
-                return -50
-        """
+            for tower in self.attack_towers + self.support_towers:
+                if (tower.x, tower.y) == pos:
+                    # 已经有塔，给惩罚
+                    return -70
 
         # 添加塔（相当于玩家点击菜单中相应塔的按钮）
         self.add_tower(name_map[tower_type])
@@ -763,7 +780,7 @@ class Game_q(Game):
         if post_tower_count > pre_tower_count:
             # 成功放置塔
             cost = pre_money - post_money
-            cost_penalty = cost * 0.5
+            cost_penalty = cost * 0.1
 
             # 记录有效放置的状态和动作
             current_state = self.get_state()
@@ -773,24 +790,25 @@ class Game_q(Game):
         else:
             # 放塔失败（不可建造位置或没钱）
             # 给一定的固定惩罚
-            return -50
+            return -70
 
     def compute_reward(self, old_lives, old_enemy_count, old_money, cost_penalty):
         reward = 0
+        towers_nb = len(self.attack_towers) + len(self.support_towers)
         # life_loss = old_lives - self.lives
         # reward -= life_loss * 300
 
         # killed = old_enemy_count - len(self.enemys)
         # reward += killed * 50
 
-        if len(self.attack_towers) + len(self.support_towers) >= 2:
-            reward -= 0.01
-        elif len(self.attack_towers) + len(self.support_towers) >= 3:
-            reward -= 0.03
-        elif len(self.attack_towers) + len(self.support_towers) >= 4:
-            reward -= 0.08
-        elif len(self.attack_towers) + len(self.support_towers) >= 5:
-            reward -= 0.22
+        if towers_nb >= 2:
+            reward -= 0.05
+        elif towers_nb >= 3:
+            reward -= 0.15
+        elif towers_nb >= 4:
+            reward -= 0.4
+        elif towers_nb >= 5:
+            reward -= 1.54
 
         reward += cost_penalty
 
@@ -852,7 +870,7 @@ class Game_q(Game):
                         for state, action_idx in self.effective_states:
                             old_q = self.get_q_value(state, action_idx)
                             # 根据通关奖励增加分数
-                            self.set_q_value(state, action_idx, old_q + 120)
+                            self.set_q_value(state, action_idx, old_q + 300)
                     elif self.lives > 8:
                         for state, action_idx in self.effective_states:
                             old_q = self.get_q_value(state, action_idx)
@@ -915,6 +933,8 @@ class Game_q(Game):
             q_values.sort(key=lambda x: x[0], reverse=True)
             best_action_idx = q_values[0][1]
             self.take_action(best_action_idx)
+
+            print(f"Tick: {self.tick_counter}, State: {state}, Q-Values: {q_values}, Best Action: {best_action_idx}")
 
             if not self.pause:
                 self.gen_enemies()
@@ -1002,6 +1022,7 @@ class Game_q(Game):
         run_game = True
         clock = pygame.time.Clock()
         self.tick_counter = 0  # 初始化tick计数器
+        print(self.actions)
 
         while run_game:
             clock.tick(60)
