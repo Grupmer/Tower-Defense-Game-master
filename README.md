@@ -26,9 +26,13 @@ This will start the game demo, allowing you to test the gameplay and observe how
 ## Folder Structure
 
 algorithm/: Contains the core DP and Greedy algorithms that power the game’s optimization strategies.
+
 enemies/: Defines the monster types and their attributes.
+
 towers/: Includes definitions of tower types and their characteristics.
+
 menu/ and main_menu/: Handles the game interface and menu interactions.
+
 game_assets/: Stores visual or sound assets used in the game.
 
 # Future Improvements
