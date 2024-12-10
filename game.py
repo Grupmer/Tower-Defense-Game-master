@@ -129,7 +129,7 @@ class Game:
                 self.pause = True
                 self.playPauseButton.paused = self.pause
         else:
-            if self.tick_counter % self.ticks_per_enemy == 0:  # 根据 tick 判断是否生成怪物
+            if self.tick_counter % self.ticks_per_enemy == 0:  # Generate enemy based on tick count
                 wave_enemies = [Scorpion(), Wizard(), Club(), Sword()]
                 for x in range(len(self.current_wave)):
                     if self.current_wave[x] != 0:
@@ -149,7 +149,7 @@ class Game:
 
     def get_tower_cost(self, tower_name):
         """
-        补丁，用来获取塔价格
+        Patch to get tower prices.
         """
         name_cost_mapping = {
             "archer": 300,
@@ -181,7 +181,7 @@ class Game:
 
     def add_tower(self, name):
         """
-        准备放置塔，由用户点击地图第二次来完成放置
+        Prepares to place a tower. The user clicks on the map a second time to finalize placement.
         """
         x, y = pygame.mouse.get_pos()
         name_list = ["buy_archer", "buy_archer_2", "buy_damage", "buy_range", "buy_stone", "buy_magic"]
@@ -199,36 +199,36 @@ class Game:
             self.moving_object = obj
             obj.moving = True
         except ValueError:
-            print(f"{name} 不是一个有效的塔名称！")
+            print(f"{name} is not a valid tower name!")
 
     def place_tower(self, pos):
         if self.moving_object is None:
             return
 
         x, y = pos
-        # 检查是否点击在合法位置
+        # Check if the click is on a valid position
         valid_pos = self.is_valid_position(x, y)
         if not valid_pos:
-            print("请选择一个合法的位置放置塔！")
+            print("Please select a valid position to place the tower!")
             self.moving_object = None
             return
 
-        # 检查是否与现有塔重叠
+        # Check if the position overlaps with existing towers
         tower_list = self.attack_towers + self.support_towers
         for tower in tower_list:
             if tower.x == valid_pos[0] and tower.y == valid_pos[1]:
-                print("该位置已被其他塔占据！")
+                print("This position is already occupied by another tower!")
                 self.moving_object = None
                 return
 
-        # 获取塔的成本
+        # Get the cost of the tower
         cost = self.get_tower_cost(self.moving_object.name)
         if self.money < cost:
-            print("金钱不足，无法放置该塔！")
+            print("Not enough money to place this tower!")
             self.moving_object = None
             return
 
-        # 放置塔
+        # Place the tower
         self.moving_object.x, self.moving_object.y = valid_pos
         if self.moving_object.name in attack_tower_names:
             self.attack_towers.append(self.moving_object)
@@ -237,39 +237,38 @@ class Game:
             self.support_towers.append(self.moving_object)
             self.money -= cost
         else:
-            print("未知的塔类型！")
+            print("Unknown tower type!")
             self.moving_object = None
             return
 
-        # 放置成功，清除选中状态
+        # Successfully placed the tower, clear selection state
         self.moving_object.moving = False
         self.moving_object = None
         self.selected_tower_type = None
 
     def update_game_state(self):
         """
-        更新敌人和塔的位置，处理攻击和检查游戏结束
+        Updates the positions of enemies and towers, processes attacks, and checks for game over.
         """
-        # loop through enemies
-        to_del = []
-        for en in self.enemys:
-            en.move()
-            if en.x < -15:
-                to_del.append(en)
+        # Loop through enemies
+        to_remove = []
+        for enemy in self.enemys:
+            enemy.move()
+            if enemy.x < -15:
+                to_remove.append(enemy)
 
-        # delete all enemies off the screen
-        for d in to_del:
+        # Remove all enemies that are off the screen
+        for enemy in to_remove:
             self.lives -= 1
-            self.enemys.remove(d)
+            self.enemys.remove(enemy)
 
-        # loop through attack towers
-        for tw in self.attack_towers:
-            if tw.name in attack_tower_with_bullet:  # 仅处理带有弹道的塔
-                tw.attack(self.enemys)  # 仅生成弹道，不处理命中和伤害
-                self.money += tw.update_projectiles(self.enemys)  # 更新弹道并处理命中
-
-            else:  # 非弹道塔的直接攻击逻辑
-                self.money += tw.attack(self.enemys)
+        # Loop through attack towers
+        for tower in self.attack_towers:
+            if tower.name in attack_tower_with_bullet:  # Only process towers with projectiles
+                tower.attack(self.enemys)  # Only generates projectiles, does not handle hits and damage
+                self.money += tower.update_projectiles(self.enemys)  # Update projectiles and handle hits
+            else:  # Direct attack logic for non-projectile towers
+                self.money += tower.attack(self.enemys)
 
         # loop through support towers
         for tw in self.support_towers:
@@ -357,10 +356,10 @@ class Game:
         clock = pygame.time.Clock()
         while run_game:
             clock.tick(60)  # 60 FPS
-            self.tick_counter += 1  # 每帧增加一个 tick
+            self.tick_counter += 1  # Increment the tick counter each frame
 
             if not self.pause:
-                self.gen_enemies()  # 基于 tick 生成敌人
+                self.gen_enemies()  # Generate enemies based on ticks
 
             pos = pygame.mouse.get_pos()
 
@@ -386,18 +385,18 @@ class Game:
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self.moving_object:
-                        # 如果正在放置塔，点击地图尝试放置
+                        # If a tower is being placed, click on the map to attempt placement
                         self.place_tower(pygame.mouse.get_pos())
                     else:
-                        # 检查是否点击了菜单中的塔
+                        # Check if a tower in the menu was clicked
                         side_menu_button = self.menu.get_clicked(pos[0], pos[1])
                         if side_menu_button:
-                            # 选择塔类型
+                            # Select tower type
                             self.selected_tower_type = side_menu_button
                             self.add_tower(self.selected_tower_type)
-                            continue  # 防止后续点击处理
+                            continue  # Prevent further click handling
 
-                        # 检查是否点击了控制按钮
+                        # Check if a control button was clicked
                         if self.playPauseButton.click(pos[0], pos[1]):
                             self.pause = not self.pause
                             self.playPauseButton.paused = self.pause
@@ -424,7 +423,7 @@ class Game:
                                         self.money -= cost
                                         self.selected_tower.upgrade()
                                     else:
-                                        print("没有足够的金钱进行升级")
+                                        print("Not enough money to upgrade")
 
                         if not (btn_clicked):
                             for tw in self.attack_towers:
@@ -468,7 +467,7 @@ class Game_dp(Game):
 
     def run(self):
         """
-        运行传统游戏。有两个额外的按钮可以运行传统算法，并自动放置防御塔。
+        Run the traditional game. Includes two additional buttons to run traditional algorithms and automatically place defense towers.
         """
         pygame.mixer.music.play(loops=-1)
         run_game = True
@@ -482,10 +481,10 @@ class Game_dp(Game):
 
         while run_game:
             clock.tick(60)  # 60 FPS
-            self.tick_counter += 1  # 每帧增加一个 tick
+            self.tick_counter += 1  # Increment a tick for every frame
 
             if not self.pause:
-                self.gen_enemies()  # 基于 tick 生成敌人
+                self.gen_enemies()  # Generate enemies based on ticks
 
             pos = pygame.mouse.get_pos()
 
@@ -511,18 +510,18 @@ class Game_dp(Game):
 
                 if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                     if self.moving_object:
-                        # 如果正在放置塔，点击地图尝试放置
+                        # If a tower is being placed, click on the map to attempt placement
                         self.place_tower(pygame.mouse.get_pos())
                     else:
-                        # 检查是否点击了菜单中的塔
+                        # Check if a menu tower was clicked
                         side_menu_button = self.menu.get_clicked(pos[0], pos[1])
                         if side_menu_button:
-                            # 选择塔类型
+                            # Select the tower type
                             self.selected_tower_type = side_menu_button
                             self.add_tower(self.selected_tower_type)
-                            continue  # 防止后续点击处理
+                            continue  # Prevent further click handling
 
-                        # 检查是否点击了控制按钮
+                        # Check if a control button was clicked
                         if self.playPauseButton.click(pos[0], pos[1]):
                             self.pause = not self.pause
                             self.playPauseButton.paused = self.pause
@@ -563,7 +562,7 @@ class Game_dp(Game):
                                         self.money -= cost
                                         self.selected_tower.upgrade()
                                     else:
-                                        print("没有足够的金钱进行升级")
+                                        print("Not enough money to upgrade")
 
                         if not (btn_clicked):
                             for tw in self.attack_towers:
@@ -598,28 +597,28 @@ class Game_q(Game):
         self.qPlayButton = ActionButton(q_play_btn, 680, self.height - 85)
         self.valid_positions = [(117, 113), (544, 160), (1070, 160), (899, 564), (485, 612)]
 
-        # Q-learning相关参数
-        self.alpha = 0.1
-        self.gamma = 1.0
-        self.epsilon = 1.0  # 初始探索率
-        self.epsilon_decay = 0.999  # 每个episode结束后降低epsilon
-        self.min_epsilon = 0.01
-        self.num_training_episodes = 200  # 训练的回合数，可根据需要调整
-        self.training_tick_speed = 6000  # 训练时每秒tick数（越大越快）
-        self.policy_tick_speed = 60  # 展示时的tick速度
-        self.Q = {}  # Q表: Q[(wave, discretized_money, built_positions)][action] = q_value
-        self.effective_states = []  # 用于记录有效放置的状态和动作
+        # Q-learning related parameters
+        self.alpha = 0.1  # Learning rate
+        self.gamma = 0.2  # Discount factor
+        self.epsilon = 1.0  # Initial exploration rate
+        self.epsilon_decay = 0.999  # Decay rate for epsilon after each episode
+        self.min_epsilon = 0.01  # Minimum exploration rate
+        self.num_training_episodes = 2000  # Number of training episodes, adjustable as needed
+        self.training_tick_speed = 100000  # Tick speed during training (higher means faster)
+        self.policy_tick_speed = 60  # Tick speed during demonstration
+        self.Q = {}  # Q-table: Q[(wave, discretized_money, built_positions)][action] = q_value
+        self.effective_states = []  # Records effective states and actions during placement
 
-        self.actions = self.generate_actions()  # 生成所有动作
-        self.training_done = False  # 标记训练结束
-        self.policy_mode = False  # 是否处于演示模式
+        self.actions = self.generate_actions()  # Generate all possible actions
+        self.training_done = False  # Flag indicating if training is complete
+        self.policy_mode = False  # Indicates whether in demonstration mode
 
     def gen_enemies_q(self):
         """
         generate the next enemy or enemies to show
         :return: enemy
         """
-        if self.tick_counter % self.ticks_per_enemy == 0:  # 根据 tick 判断是否生成怪物
+        if self.tick_counter % self.ticks_per_enemy == 0:  # Determine whether to spawn an enemy based on the current tick
             wave_enemies = [Scorpion(), Wizard(), Club(), Sword()]
             for x in range(len(self.current_wave)):
                 if self.current_wave[x] != 0:
@@ -665,11 +664,11 @@ class Game_q(Game):
 
     def generate_actions(self):
         """
-        动作空间：共16种
+        Action Space: A total of 16 actions
         0: do nothing
-        1~5: 在valid_positions对应位置放archer
-        6~10: 在valid_positions对应位置放stone
-        11~15: 在valid_positions对应位置放magic
+        1~5: Place an archer at the corresponding valid_positions
+        6~10: Place a stone tower at the corresponding valid_positions
+        11~15: Place a magic tower at the corresponding valid_positions
         """
         actions = []
         actions.append(("none", None))  # 0
@@ -682,7 +681,7 @@ class Game_q(Game):
         return actions
 
     def get_state(self):
-        discretized_money = self.money // 200  # 离散化金钱
+        discretized_money = self.money // 200  # Discretize money into intervals of 200
 
         def tower_type_to_int(tower):
             if "archer" in tower.name:
@@ -696,7 +695,7 @@ class Game_q(Game):
 
         built_positions = []
         for pos in self.valid_positions:
-            # 找到该位置上的塔，如果有的话
+            # Find the tower at the specified position, if it exists
             tower_found = None
             for tower in (self.attack_towers + self.support_towers):
                 if (tower.x, tower.y) == pos:
@@ -710,7 +709,7 @@ class Game_q(Game):
 
         built_positions = tuple(built_positions)
 
-        return (self.wave, self.lives, discretized_money, built_positions)
+        return (self.wave, discretized_money, built_positions)
 
     def get_q_value(self, state, action):
         return self.Q.get((state, action), 0.0)
@@ -735,8 +734,11 @@ class Game_q(Game):
     def take_action(self, action_idx):
         action = self.actions[action_idx]
         if action[0] == "none":
-            # 不做任何事
-            return 0  # 不产生额外cost_penalty
+            # do nothing
+            return 0.1
+
+        # Recording state before performing an action
+        prev_state = self.get_state()
 
         tower_type = action[0]
         pos = action[1]
@@ -744,71 +746,59 @@ class Game_q(Game):
         pre_money = self.money
         pre_tower_count = len(self.attack_towers) + len(self.support_towers)
 
-        # 模拟玩家放塔的流程：
-        # 1. 点击菜单按钮选择塔（add_tower）
-        # 2. 点击地图放置塔（place_tower）
-        # 注意：add_tower会设置self.moving_object
         name_map = {
             "archer": "buy_archer",
             "stone": "buy_stone",
             "magic": "buy_magic"
         }
 
-        # 如果出现tower_type不在name_map中，则不支持该动作
         if tower_type not in name_map:
-            # 未知塔类型，给点惩罚
+            # Unknown tower type, give some penalty
             return -50
 
-        # 检查是否该位置已经有塔
+        # Check if there is already a tower at that location
         if pos in self.valid_positions:
-            index = self.valid_positions.index(pos)
             for tower in self.attack_towers + self.support_towers:
                 if (tower.x, tower.y) == pos:
-                    # 已经有塔，给惩罚
+                    # There is already a tower, give punishment
                     return -70
 
-        # 添加塔（相当于玩家点击菜单中相应塔的按钮）
+        # Add a tower (equivalent to the player clicking the button of the corresponding tower in the menu)
         self.add_tower(name_map[tower_type])
-
-        # 此时self.moving_object应该是选中的塔
-        # 在选定pos放置塔（相当于玩家在地图上点一下）
         self.place_tower(pos)
 
         post_money = self.money
         post_tower_count = len(self.attack_towers) + len(self.support_towers)
 
         if post_tower_count > pre_tower_count:
-            # 成功放置塔
+            # Successfully placed tower
             cost = pre_money - post_money
-            cost_penalty = cost * 0.1
+            cost_penalty = cost * 0.5
 
-            # 记录有效放置的状态和动作
-            current_state = self.get_state()
-            self.effective_states.append((current_state, action_idx))
+            self.effective_states.append((prev_state, action_idx))
 
             return -cost_penalty
         else:
-            # 放塔失败（不可建造位置或没钱）
-            # 给一定的固定惩罚
+            # Failed to place the tower, give some punishment
             return -70
 
     def compute_reward(self, old_lives, old_enemy_count, old_money, cost_penalty):
         reward = 0
         towers_nb = len(self.attack_towers) + len(self.support_towers)
-        # life_loss = old_lives - self.lives
-        # reward -= life_loss * 300
+        life_loss = old_lives - self.lives
+        reward -= life_loss * 30
 
-        # killed = old_enemy_count - len(self.enemys)
-        # reward += killed * 50
+        killed = old_enemy_count - len(self.enemys)
+        reward += killed * 10
 
         if towers_nb >= 2:
-            reward -= 0.05
+            reward -= 1.5
         elif towers_nb >= 3:
-            reward -= 0.15
+            reward -= 10
         elif towers_nb >= 4:
-            reward -= 0.4
+            reward -= 28.1
         elif towers_nb >= 5:
-            reward -= 1.54
+            reward -= 40.4
 
         reward += cost_penalty
 
@@ -816,14 +806,14 @@ class Game_q(Game):
 
     def reset_game(self):
         super().reset_game()
-        self.pause = False   # 确保训练时不暂停游戏
+        self.pause = False  # Ensure the game is not paused during training
 
     def run_q_learning(self):
         """
-        点击qButton后执行训练：
-        1. 只训练第一波敌人。
-        2. 在训练过程中每个episode都从头开始。
-        3. 当第一波结束或游戏失败，episode结束。
+        Execute Q-learning training when the qButton is clicked:
+        1. Train on the first wave of enemies only.
+        2. Each episode starts from the beginning of the wave.
+        3. The episode ends when the first wave is defeated or the game is lost.
         """
         self.policy_mode = False
         self.training_done = False
@@ -831,13 +821,13 @@ class Game_q(Game):
 
         for episode in range(self.num_training_episodes):
             self.reset_game()
-            self.display_q_table(episode)  # 展示Q表
+            # self.display_q_table(episode)  # Display the Q-table
             done = False
             self.tick_counter = 0
 
             while not done:
                 clock.tick(self.training_tick_speed)
-                self.tick_counter += 1  # 增加tick计数器
+                self.tick_counter += 1  # Increment tick counter
 
                 state = self.get_state()
                 old_lives = self.lives
@@ -847,9 +837,9 @@ class Game_q(Game):
                 action_idx = self.choose_action(state)
                 cost_penalty = self.take_action(action_idx)
 
-                # 更新游戏状态
+                # Update game state
                 if not self.pause:
-                    self.gen_enemies_q()  # 特殊的生成方式
+                    self.gen_enemies_q()  # Special generation method
                     self.update_game_state()
 
                 next_state = self.get_state()
@@ -860,41 +850,38 @@ class Game_q(Game):
                 new_q = old_q + self.alpha * (reward + self.gamma * future_val - old_q)
                 self.set_q_value(state, action_idx, new_q)
 
-                # 判断episode结束条件
-                # 第一波结束条件：current_wave耗尽且no enemies
+                # Check episode termination conditions
+                # Termination for the first wave: current_wave is exhausted and no enemies
                 if (sum(self.current_wave) == 0 and len(self.enemys) == 0) or self.lives <= 0:
                     done = True
 
-                    # 游戏结束时调整有效状态的分数
-                    if self.lives > 9:  # 游戏完美通关
+                    # Adjust scores of effective states when the game ends
+                    if self.lives > 9:  # Perfect completion
                         for state, action_idx in self.effective_states:
                             old_q = self.get_q_value(state, action_idx)
-                            # 根据通关奖励增加分数
-                            self.set_q_value(state, action_idx, old_q + 300)
-                    elif self.lives > 8:
+                            # Increase scores based on completion reward
+                            self.set_q_value(state, action_idx, old_q + 5)
+                    else:  # Game failure
                         for state, action_idx in self.effective_states:
                             old_q = self.get_q_value(state, action_idx)
-                            # 根据通关奖励增加分数
-                            self.set_q_value(state, action_idx, old_q - 300)
-                    elif self.lives > 6:
-                        for state, action_idx in self.effective_states:
-                            old_q = self.get_q_value(state, action_idx)
-                            # 根据通关奖励增加分数
-                            self.set_q_value(state, action_idx, old_q - 500)
-                    else:  # 游戏失败
-                        for state, action_idx in self.effective_states:
-                            old_q = self.get_q_value(state, action_idx)
-                            # 根据失败惩罚减少分数
-                            self.set_q_value(state, action_idx, old_q - 99999)
+                            # Decrease scores based on failure penalty
+                            self.set_q_value(state, action_idx, old_q - 1000)
 
-                    # 清空有效状态列表，准备下一局
+                    money_bonus = self.money * 0.5
+
+                    for state, action_idx in self.effective_states:
+                        old_q = self.get_q_value(state, action_idx)
+                        self.set_q_value(state, action_idx, old_q + money_bonus)
+
+                    # Clear the list of effective states, prepare for the next game
+                    print(self.effective_states)
                     self.effective_states = []
 
-                # 在训练时也进行绘制
+                # Perform drawing during training as well
                 # self.draw()
                 # pygame.display.update()
 
-            # 衰减epsilon
+            # Decay epsilon
             if self.epsilon > self.min_epsilon:
                 self.epsilon *= self.epsilon_decay
 
@@ -903,13 +890,14 @@ class Game_q(Game):
         self.training_done = True
         self.policy_mode = True
         self.epsilon = 0.0
-        self.run_policy_demo()
+        # self.run_policy_demo()
+        pygame.quit()
 
     def run_policy_demo(self):
         """
-        使用训练的策略进行一次展示
+        Demonstrate the trained policy
         """
-        self.load_q_table()  # 在演示前加载 Q 表
+        self.load_q_table()  # Load the Q-table before the demonstration
 
         self.reset_game()
         run_game = True
@@ -917,7 +905,7 @@ class Game_q(Game):
 
         while run_game:
             clock.tick(self.policy_tick_speed)
-            self.tick_counter += 1  # 增加tick计数器
+            self.tick_counter += 1  # Increment tick counter
 
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
@@ -927,7 +915,7 @@ class Game_q(Game):
                 run_game = False
                 break
 
-            # 使用贪心策略
+            # Use greedy strategy
             state = self.get_state()
             q_values = [(self.get_q_value(state, a_idx), a_idx) for a_idx in range(len(self.actions))]
             q_values.sort(key=lambda x: x[0], reverse=True)
@@ -947,48 +935,48 @@ class Game_q(Game):
 
     def save_q_table(self, filename="q_table.pkl"):
         """
-        使用 pickle 将 Q 表保存到文件。
+        Save the Q-table to a file using pickle.
         """
         with open(filename, 'wb') as f:
             pickle.dump(self.Q, f)
-        print(f"Q 表已保存到 {filename}")
+        print(f"Q-table has been saved to {filename}")
 
     def load_q_table(self, filename="q_table.pkl"):
         """
-        使用 pickle 从文件中加载 Q 表。
+        Load the Q-table from a file using pickle.
         """
         try:
             with open(filename, 'rb') as f:
                 self.Q = pickle.load(f)
-            print(f"Q 表已从 {filename} 加载。")
+            print(f"Q-table has been loaded from {filename}.")
         except FileNotFoundError:
-            print(f"未找到 Q 表文件 {filename}。请先进行训练。")
+            print(f"Q-table file {filename} not found. Please train first.")
             self.Q = {}
 
     def save_q_table(self, filename="q_table.json"):
         """
-        使用 JSON 将 Q 表保存到文件。
+        Save the Q-table to a file using JSON.
         """
-        # JSON 不支持非字符串的字典键，将元组转换为字符串保存
+        # JSON does not support non-string dictionary keys, convert tuples to strings
         json_compatible_Q = {str(key): value for key, value in self.Q.items()}
         
         with open(filename, 'w') as f:
             json.dump(json_compatible_Q, f, indent=4)
-        print(f"Q 表已保存到 {filename}")
+        print(f"Q-table has been saved to {filename}")
 
     def load_q_table(self, filename="q_table.json"):
         """
-        使用 JSON 从文件中加载 Q 表。
+        Load the Q-table from a file using JSON.
         """
         try:
             with open(filename, 'r') as f:
                 json_compatible_Q = json.load(f)
             
-            # 将字符串键还原为元组
+            # Restore string keys back to tuples
             self.Q = {eval(key): value for key, value in json_compatible_Q.items()}
-            print(f"Q 表已从 {filename} 加载。")
+            print(f"Q-table has been loaded from {filename}.")
         except FileNotFoundError:
-            print(f"未找到 Q 表文件 {filename}。请先进行训练。")
+            print(f"Q-table file {filename} not found. Please train first.")
             self.Q = {}
 
     def display_q_table(self, episode):
@@ -1015,33 +1003,33 @@ class Game_q(Game):
 
     def run(self):
         """
-        如果没有点击qButton，就跟普通Game运行方式一样
-        如果点击了qButton，qButton会调用run_q_learning方法，因此这里run就和Game一样即可
+        If the qButton is not clicked, run the game normally.
+        If the qButton is clicked, it calls run_q_learning, so run works like Game here.
         """
         pygame.mixer.music.play(loops=-1)
         run_game = True
         clock = pygame.time.Clock()
-        self.tick_counter = 0  # 初始化tick计数器
+        self.tick_counter = 0  # Initialize tick counter
         print(self.actions)
 
         while run_game:
             clock.tick(60)
-            self.tick_counter += 1  # 增加tick计数器
+            self.tick_counter += 1  # Increment tick counter
 
             pos = pygame.mouse.get_pos()
 
-            # 如果已经在policy_mode或训练模式中，run方法就不处理点击事件了。
-            # 这里为了保持逻辑简单，在policy_mode和训练模式跑完后直接退出了游戏展示。
+            # If already in policy_mode or training mode, run no longer handles click events.
+            # Here, for simplicity, the game exits after policy_mode and training mode finish.
             if self.training_done and self.policy_mode:
-                # 说明展示已经结束
-                # 不再继续普通游戏逻辑，可以在这里选择退出或重置
+                # Indicates that the demonstration is over
+                # No longer continue normal game logic, you can choose to exit or reset here
                 run_game = False
                 break
 
-            # 只有在非训练、非policy模式下才像普通Game那样运行
+            # Run like normal Game only in non-training and non-policy mode
             if not self.training_done and not self.policy_mode:
                 if not self.pause:
-                    self.gen_enemies()  # 基于 tick 生成敌人
+                    self.gen_enemies()  # Generate enemies based on ticks
 
                 # Handle moving towers (if any)
                 if self.moving_object:
@@ -1063,18 +1051,18 @@ class Game_q(Game):
                         run_game = False
                     if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                         if self.moving_object:
-                            # 如果正在放置塔，点击地图尝试放置
+                            # If placing a tower, click the map to attempt placement
                             self.place_tower(pygame.mouse.get_pos())
                         else:
-                            # 检查是否点击了菜单中的塔
+                            # Check if a tower in the menu was clicked
                             side_menu_button = self.menu.get_clicked(pos[0], pos[1])
                             if side_menu_button:
-                                # 选择塔类型
+                                # Select tower type
                                 self.selected_tower_type = side_menu_button
                                 self.add_tower(self.selected_tower_type)
-                                continue  # 防止后续点击处理
+                                continue  # Prevent subsequent click handling
 
-                            # 检查是否点击了控制按钮
+                            # Check if control buttons were clicked
                             if self.playPauseButton.click(pos[0], pos[1]):
                                 self.pause = not self.pause
                                 self.playPauseButton.paused = self.pause
@@ -1087,21 +1075,21 @@ class Game_q(Game):
                                 else:
                                     pygame.mixer.music.pause()
 
-                            # 检查 Q 学习按钮
+                            # Check Q-learning buttons
                             if self.qTrainButton.click(pos[0], pos[1]):
-                                # 在单独线程中启动 Q 学习训练以防止阻塞主循环
+                                # Start Q-learning training in a separate thread to avoid blocking the main loop
                                 import threading
                                 training_thread = threading.Thread(target=self.run_q_learning)
                                 training_thread.start()
 
                             if self.qPlayButton.click(pos[0], pos[1]):
-                                # 启动策略演示
-                                # 确保在演示前已加载 Q 表
+                                # Start policy demonstration
+                                # Ensure Q-table is loaded before demonstration
                                 if not self.Q:
                                     self.load_q_table()
                                 self.run_policy_demo()
 
-                            # look if you clicked on attack tower or support tower
+                            # Look if an attack tower or support tower was clicked
                             btn_clicked = None
                             if self.selected_tower:
                                 btn_clicked = self.selected_tower.menu.get_clicked(pos[0], pos[1])
@@ -1112,7 +1100,7 @@ class Game_q(Game):
                                             self.money -= cost
                                             self.selected_tower.upgrade()
                                         else:
-                                            print("没有足够的金钱进行升级")
+                                            print("Not enough money to upgrade")
 
                             if not btn_clicked:
                                 for tw in self.attack_towers:
@@ -1129,11 +1117,11 @@ class Game_q(Game):
                                     else:
                                         tw.selected = False
 
-                # update game state
+                # Update game state
                 if not self.pause:
                     self.update_game_state()
 
-                # draw all elements
+                # Draw all elements
                 self.draw()
 
         pygame.quit()
