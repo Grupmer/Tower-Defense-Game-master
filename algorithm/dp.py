@@ -18,7 +18,7 @@ class Monster:
 
 def init_game():
     """Initialize towers and monsters"""
-    # Define dwelling time at each position in the game
+    # Define dwelling time at each position
     position_times = {
         0: 3.71,    # First position stays for 3.71 seconds
         1: 6.00,    # Second position stays for 6.00 seconds
