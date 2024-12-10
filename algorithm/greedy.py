@@ -18,7 +18,7 @@ class Monster:
 
 def init_game():
     """Initialize towers and monsters"""
-    # Define attack durations for each position at the game
+    # Define attack durations for each position in the game
     position_times = {
         0: 3.71,    # First position duration: 3.71 seconds
         1: 6.00,    # Second position duration: 6.00 seconds
