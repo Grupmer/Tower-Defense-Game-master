@@ -932,6 +932,8 @@ class Game_q(Game):
             pygame.display.update()
 
         # pygame.quit()
+        self.reset_game()
+        self.run()
 
     def save_q_table(self, filename="q_table.pkl"):
         """
@@ -1074,6 +1076,9 @@ class Game_q(Game):
                                     pygame.mixer.music.unpause()
                                 else:
                                     pygame.mixer.music.pause()
+
+                            if self.restartButton.click(pos[0], pos[1]):
+                                self.reset_game()
 
                             # Check Q-learning buttons
                             if self.qTrainButton.click(pos[0], pos[1]):
