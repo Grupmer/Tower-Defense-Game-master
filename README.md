@@ -5,7 +5,7 @@ This project showcases a tower defense game we designed, focusing on strategic g
 ## Key Features
 
 	1.	Core Algorithms:
-	The heart of this project lies in the implementation of Dynamic Programming (DP) and Greedy algorithms. These algorithms are essential for solving the placement optimization problem, ensuring the most cost-effective tower deployment. You can explore these implementations in detail within the algorithm folder.
+	The heart of this project lies in the implementation of Dynamic Programming (DP), Greedy algorithms, and Q learning. These algorithms are essential for solving the placement optimization problem, ensuring the most cost-effective tower deployment. You can explore these implementations in detail within the algorithm folder.
 	2.	Game Elements:
 	Towers: Various types of towers with unique abilities, such as physical damage and magic damage, are available for placement. Each tower has specific characteristics, including attack speed, cost, and suitability against different monster types.
 	Monsters: Monsters are designed with distinct traits like high armor, magic resistance, or low health, requiring players to carefully select towers to counter them effectively.
